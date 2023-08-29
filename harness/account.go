@@ -13,11 +13,12 @@ type Account struct {
 }
 
 type Config struct {
-	AccountIdentifier string     `yaml:"accountIdentifier"`
-	ApiKey            string     `yaml:"apiKey"`
-	TargetProjects    []string   `yaml:"targetProjects"`
-	ExcludeProjects   []string   `yaml:"excludeProjects"`
-	GitDetails        GitDetails `yaml:"gitDetails"`
+	AccountIdentifier string          `yaml:"accountIdentifier"`
+	ApiKey            string          `yaml:"apiKey"`
+	TargetProjects    []string        `yaml:"targetProjects"`
+	ExcludeProjects   []string        `yaml:"excludeProjects"`
+	GitDetails        GitDetails      `yaml:"gitDetails"`
+	FileStoreConfig   FileStoreConfig `yaml:"fileStoreConfig"`
 }
 
 type GitDetails struct {
@@ -27,6 +28,14 @@ type GitDetails struct {
 	// BaseBranch    string `yaml:"base_branch,omitempty" json:"-"`
 	ConnectorRef string `yaml:"connector_ref" json:"connector_ref"`
 	RepoName     string `yaml:"repo_name" json:"repo_name"`
+}
+
+type FileStoreConfig struct {
+	Organization  string `yaml:"organization"`
+	Project       string `yaml:"project"`
+	Branch        string `yaml:"branch"`
+	RepositoryURL string `yaml:"url"`
+	ConnectorRef  string `yaml:"connector_ref" json:"connector_ref"`
 }
 
 func (c *Config) ReadConfig(filepath string) *Config {

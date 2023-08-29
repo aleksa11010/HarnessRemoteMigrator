@@ -49,7 +49,3 @@ type ProjectsTags struct {
 type ProjectsModule string
 
 type OrgIdentifier string
-
-type ProjectsAPI interface {
-	GetAllProjects(account string) (Entities, error)
-}

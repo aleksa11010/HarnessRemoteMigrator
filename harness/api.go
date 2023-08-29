@@ -3,6 +3,8 @@ package harness
 import (
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 
 	resty "github.com/go-resty/resty/v2"
@@ -154,4 +156,184 @@ func (t *Template) MoveTemplateToRemote(api *APIRequest, c Config, org, project 
 	}
 
 	return string(resp.Body()), err
+}
+
+func (api *APIRequest) GetAllOrgs(account string) (Organizations, error) {
+	resp, err := api.Client.R().
+		SetHeader("x-api-key", api.APIKey).
+		SetHeader("Harness-Account", account).
+		SetQueryParams(map[string]string{
+			"limit": "1000",
+		}).
+		Get(api.BaseURL + "/v1/orgs")
+	if err != nil {
+		return Organizations{}, err
+	}
+
+	organizations := Organizations{}
+	err = json.Unmarshal(resp.Body(), &organizations)
+	if err != nil {
+		return Organizations{}, err
+	}
+
+	return organizations, nil
+}
+
+func (api *APIRequest) GetAllAccountFiles(account string) ([]FileStoreContent, error) {
+	resp, err := api.Client.R().
+		SetHeader("x-api-key", api.APIKey).
+		SetHeader("Content-Type", "application/json").
+		SetQueryParams(map[string]string{
+			"accountIdentifier": account,
+			"pageSize":          "2000",
+		}).
+		Get(api.BaseURL + "/ng/api/file-store")
+	if err != nil {
+		return []FileStoreContent{}, err
+	}
+
+	fileStore := FileStore{}
+	err = json.Unmarshal(resp.Body(), &fileStore)
+	if err != nil {
+		return []FileStoreContent{}, err
+	}
+
+	return fileStore.Data.Content, nil
+}
+
+func (api *APIRequest) GetAllOrgFiles(account, org string) ([]FileStoreContent, error) {
+	resp, err := api.Client.R().
+		SetHeader("x-api-key", api.APIKey).
+		SetHeader("Content-Type", "application/json").
+		SetQueryParams(map[string]string{
+			"accountIdentifier": account,
+			"orgIdentifier":     org,
+			"pageSize":          "2000",
+		}).
+		Get(api.BaseURL + "/ng/api/file-store")
+	if err != nil {
+		return []FileStoreContent{}, err
+	}
+
+	fileStore := FileStore{}
+	err = json.Unmarshal(resp.Body(), &fileStore)
+	if err != nil {
+		return []FileStoreContent{}, err
+	}
+
+	return fileStore.Data.Content, nil
+}
+
+func (api *APIRequest) GetAllProjectFiles(account, org, project string) ([]FileStoreContent, error) {
+	resp, err := api.Client.R().
+		SetHeader("x-api-key", api.APIKey).
+		SetHeader("Content-Type", "application/json").
+		SetQueryParams(map[string]string{
+			"accountIdentifier": account,
+			"orgIdentifier":     org,
+			"projectIdentifier": project,
+			"pageSize":          "2000",
+		}).
+		Get(api.BaseURL + "/ng/api/file-store")
+	if err != nil {
+		return []FileStoreContent{}, err
+	}
+
+	fileStore := FileStore{}
+	err = json.Unmarshal(resp.Body(), &fileStore)
+	if err != nil {
+		return []FileStoreContent{}, err
+	}
+
+	return fileStore.Data.Content, nil
+}
+
+func (f *FileStoreContent) DownloadFile(api *APIRequest, account, org, project, folder string) error {
+	var params map[string]string
+	if project == "" && org == "" {
+		params = map[string]string{
+			"accountIdentifier": account,
+		}
+	} else if org != "" && project == "" {
+		params = map[string]string{
+			"accountIdentifier": account,
+			"orgIdentifier":     org,
+		}
+	} else {
+		params = map[string]string{
+			"accountIdentifier": account,
+			"orgIdentifier":     org,
+			"projectIdentifier": project,
+		}
+	}
+
+	resp, err := api.Client.R().
+		SetHeader("x-api-key", api.APIKey).
+		SetHeader("Content-Type", "application/json").
+		SetQueryParams(params).
+		SetPathParam("id", f.Identifier).
+		Get(api.BaseURL + "/ng/api/file-store/files/{id}/download")
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode() != 200 {
+		return fmt.Errorf("unable to download file - %s", err)
+	}
+
+	err = os.MkdirAll(filepath.Dir("./filestore/"+folder+f.Path), 0755)
+	if err != nil {
+		return err
+	}
+
+	out, err := os.Create("./filestore/" + folder + f.Path)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	_, err = out.Write(resp.Body())
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (api *APIRequest) GetConnector(account, org, project, identifier string) (ConnectorClass, error) {
+	var params map[string]string
+	if project == "" && org == "" {
+		params = map[string]string{
+			"accountIdentifier": account,
+		}
+	} else if org != "" && project == "" {
+		params = map[string]string{
+			"accountIdentifier": account,
+			"orgIdentifier":     org,
+		}
+	} else {
+		params = map[string]string{
+			"accountIdentifier": account,
+			"orgIdentifier":     org,
+			"projectIdentifier": project,
+		}
+	}
+
+	resp, err := api.Client.R().
+		SetHeader("x-api-key", api.APIKey).
+		SetHeader("Content-Type", "application/json").
+		SetQueryParams(params).
+		SetPathParam("identifier", identifier).
+		Get(api.BaseURL + "/ng/api/connectors/{identifier}")
+	if err != nil {
+		return ConnectorClass{}, err
+	}
+
+	connector := Connector{}
+	err = json.Unmarshal(resp.Body(), &connector)
+	if err != nil {
+		return ConnectorClass{}, err
+	}
+
+	return connector.Data.Connector, nil
 }
