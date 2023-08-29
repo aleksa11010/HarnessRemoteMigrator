@@ -100,9 +100,13 @@ func main() {
 	}
 
 	log.Infof("Processing total of %d projects", len(projectList))
-	tmpl := `{{ blue "Moving pipelines to Remote: " }} {{ bar . "<" "-" (cycle . "↖" "↗" "↘" "↙" ) "." ">"}} {{percent .}} `
+	pipelineTmpl := `{{ blue "Processing Pipelines: " }} {{ bar . "<" "-" (cycle . "↖" "↗" "↘" "↙" ) "." ">"}} {{percent .}} `
+	templateTmpl := `{{ blue "Processing Templates: " }} {{ bar . "<" "-" (cycle . "↖" "↗" "↘" "↙" ) "." ">"}} {{percent .}} `
 	var pipelines []harness.PipelineContent
+	var failedPipelines []string
 	for _, project := range projectList {
+		log.Infof("---Processing project %s!---", project.Project.Name)
+		// Get all pipelines for the project
 		log.Infof("Getting pipelines for project %s", project.Project.Name)
 		projectPipelines, err := api.GetAllPipelines(accountConfig.AccountIdentifier, string(project.Project.OrgIdentifier), project.Project.Identifier)
 		if err != nil {
@@ -111,23 +115,50 @@ func main() {
 		}
 		log.Infof("Found total of %d pipelines", len(projectPipelines.Data.Content))
 
+		// Get all templates for the project
+		log.Infof("Getting templates for project %s", project.Project.Name)
+		projectTemplates, err := api.GetAllTemplates(accountConfig.AccountIdentifier, string(project.Project.OrgIdentifier), project.Project.Identifier)
+		if err != nil {
+			log.Errorf("Unable to get templates - %s", err)
+			return
+		}
+		log.Infof("Found total of %d templates", len(projectTemplates))
+
 		log.Infof("Moving found pipelines to remote")
-		bar := pb.ProgressBarTemplate(tmpl).Start(len(projectPipelines.Data.Content))
+		pipelineBar := pb.ProgressBarTemplate(pipelineTmpl).Start(len(projectPipelines.Data.Content))
 		for _, pipeline := range projectPipelines.Data.Content {
-			accountConfig.GitDetails.FilePath = pipeline.Identifier + ".yaml"
+			accountConfig.GitDetails.FilePath = "pipelines/" + pipeline.Identifier + ".yaml"
 			resp, err := pipeline.MovePipelineToRemote(&api, accountConfig, string(project.Project.OrgIdentifier), project.Project.Identifier)
 			if err != nil {
-				log.Errorf("Unable to move pipeline - %s", err)
-				bar.Increment()
+				log.Errorf("Unable to move pipeline - %s", pipeline.Name)
+				pipelineBar.Increment()
+				failedPipelines = append(failedPipelines, pipeline.Name)
 			} else {
 				log.Infof("Moved pipeline %s to remote, response %s", pipeline.Name, string(resp))
-				bar.Increment()
+				pipelineBar.Increment()
 			}
 		}
-
+		pipelineBar.Finish()
 		pipelines = append(pipelines, projectPipelines.Data.Content...)
-		bar.Finish()
+
+		log.Infof("Moving found templates to remote")
+		templateBar := pb.ProgressBarTemplate(templateTmpl).Start(len(projectPipelines.Data.Content))
+		for _, template := range projectTemplates {
+			accountConfig.GitDetails.FilePath = "templates/" + template.Identifier + ".yaml"
+			resp, err := template.MoveTemplateToRemote(&api, accountConfig, string(project.Project.OrgIdentifier), project.Project.Identifier)
+			if err != nil {
+				log.Errorf("Unable to move template - %s", template.Name)
+				templateBar.Increment()
+				failedPipelines = append(failedPipelines, template.Name)
+			} else {
+				log.Infof("Moved template %s to remote, response %s", template.Name, string(resp))
+				templateBar.Increment()
+			}
+		}
+		templateBar.Finish()
+		pipelines = append(pipelines, projectPipelines.Data.Content...)
 	}
 
+	log.Warnf("These pipelines (count:%d) failed while moving to remote: \n%s", len(failedPipelines), strings.Join(failedPipelines, ",\n"))
 	log.Infof("Processed total of %d pipelines", len(pipelines))
 }

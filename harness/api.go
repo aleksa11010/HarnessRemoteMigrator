@@ -74,6 +74,29 @@ func (api *APIRequest) GetAllPipelines(account, org, project string) (Pipelines,
 	return pipelines, nil
 }
 
+func (api *APIRequest) GetAllTemplates(account, org, project string) (Templates, error) {
+	resp, err := api.Client.R().
+		SetHeader("x-api-key", api.APIKey).
+		SetHeader("Content-Type", "application/json").
+		SetHeader("Harness-Account", account).
+		SetQueryParams(map[string]string{
+			"orgIdentifier":     org,
+			"projectIdentifier": project,
+			"limit":             "1000",
+		}).
+		Get(api.BaseURL + fmt.Sprintf("/v1/orgs/%s/projects/%s/templates", org, project))
+	if err != nil {
+		return Templates{}, err
+	}
+	templates := Templates{}
+	err = json.Unmarshal(resp.Body(), &templates)
+	if err != nil {
+		return Templates{}, err
+	}
+
+	return templates, nil
+}
+
 func (p *PipelineContent) MovePipelineToRemote(api *APIRequest, c Config, org, project string) (string, error) {
 	type RequestBody struct {
 		GitDetails              GitDetails `json:"git_details"`
@@ -96,6 +119,34 @@ func (p *PipelineContent) MovePipelineToRemote(api *APIRequest, c Config, org, p
 			MoveConfigOperationType: "INLINE_TO_REMOTE",
 		}).
 		Post(api.BaseURL + fmt.Sprintf("/v1/orgs/%s/projects/%s/pipelines/%s/move-config", org, project, p.Identifier))
+
+	if resp.StatusCode() != 200 {
+		err = fmt.Errorf(string(resp.Body()))
+		return "", err
+	}
+
+	return string(resp.Body()), err
+}
+
+func (t *Template) MoveTemplateToRemote(api *APIRequest, c Config, org, project string) (string, error) {
+	resp, err := api.Client.R().
+		SetHeader("x-api-key", api.APIKey).
+		SetHeader("Harness-Account", c.AccountIdentifier).
+		SetHeader("Content-Type", "application/json").
+		SetQueryParams(map[string]string{
+			"templateIdenfier":  t.Identifier,
+			"accountIdentifier": c.AccountIdentifier,
+			"projectIdentifier": project,
+			"orgIdentifier":     t.Org,
+			"versionlabel":      t.VersionLabel,
+			"connectorRef":      c.GitDetails.ConnectorRef,
+			"repoName":          c.GitDetails.RepoName,
+			"branch":            c.GitDetails.BranchName,
+			"filePath":          c.GitDetails.FilePath,
+			"commitMsg":         c.GitDetails.CommitMessage,
+			"moveConfigType":    "INLINE_TO_REMOTE",
+		}).
+		Post(api.BaseURL + fmt.Sprintf("/template/api/templates/move-config/%s", t.Identifier))
 
 	if resp.StatusCode() != 200 {
 		err = fmt.Errorf(string(resp.Body()))
