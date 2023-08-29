@@ -1,0 +1,13 @@
+accountIdentifier: AccountIdentifier
+apiKey: pat.xxx.yyy.zzz
+targetProjects:
+  - "target_project1"
+  - "target_project2"
+excludeProjects:
+  - "exclude_project1"
+  - "exclude_project2"
+gitDetails:
+  branch_name: "migration"
+  commit_message: "Migrating piplines from inline to remote"
+  connector_ref: "account.HarnessRemoteTest"
+  repo_name: "HarnessRemoteTest"
