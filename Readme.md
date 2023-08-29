@@ -26,7 +26,7 @@ gitDetails: # This is where we setup remote location for pipelines/templates
 ```
 ### CLI Arguments
 
-***TBA***
+***To be added***
 
 ## Supported entities
 1. Pipelines
