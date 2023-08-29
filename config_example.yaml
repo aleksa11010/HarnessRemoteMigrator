@@ -11,3 +11,6 @@ gitDetails:
   commit_message: "Migrating piplines from inline to remote"
   connector_ref: "account.HarnessRemoteTest"
   repo_name: "HarnessRemoteTest"
+fileStoreConfig:
+  branch: "migration"
+  url: "https://github.com/aleksa11010/FileStore.git"
