@@ -66,7 +66,7 @@ func main() {
 		log.Errorf(color.RedString("Unable to get projects - %s", err))
 		return
 	}
-	log.Infof("Found total of %d projects", len(projects.Data.Content))
+	log.Infof(color.BlueString("Found total of %d projects", len(projects.Data.Content)))
 
 	log.Infof("Filtering projects based on configuration...")
 	var projectList []harness.ProjectsContent
@@ -75,7 +75,7 @@ func main() {
 			skip := true
 			for _, include := range accountConfig.TargetProjects {
 				if project.Project.Name == include {
-					log.Infof("Project %s is tageted for migration, adding...", project.Project.Name)
+					log.Infof(color.BlueString("Project %s is tageted for migration, adding...", project.Project.Name))
 					skip = false
 					break
 				}
@@ -91,7 +91,7 @@ func main() {
 			skip := false
 			for _, exclude := range accountConfig.ExcludeProjects {
 				if project.Project.Name == exclude {
-					log.Infof("Project %s is excluded from migration, skipping...", project.Project.Name)
+					log.Infof(color.BlueString("Project %s is excluded from migration, skipping...", project.Project.Name))
 					skip = true
 					break
 				}
@@ -121,7 +121,7 @@ func main() {
 			log.Errorf(color.RedString("Unable to get pipelines - %s", err))
 			return
 		}
-		log.Infof("Found total of %d pipelines", len(projectPipelines.Data.Content))
+		log.Infof(color.BlueString("Found total of %d pipelines", len(projectPipelines.Data.Content)))
 
 		// Get all templates for the project
 		log.Infof("Getting templates for project %s", project.Project.Name)
@@ -130,14 +130,14 @@ func main() {
 			log.Errorf(color.RedString("Unable to get templates - %s", err))
 			return
 		}
-		log.Infof("Found total of %d templates", len(projectTemplates))
+		log.Infof(color.BlueString("Found total of %d templates", len(projectTemplates)))
 
 		if len(projectPipelines.Data.Content) > 0 {
 			log.Infof("Moving found pipelines to remote")
 			pipelineBar := pb.ProgressBarTemplate(pipelineTmpl).Start(len(projectPipelines.Data.Content))
 			for _, pipeline := range projectPipelines.Data.Content {
 				// Set the directory to pipelines and use the identifier as file name
-				accountConfig.GitDetails.FilePath = "pipelines/" + pipeline.Identifier + ".yaml"
+				accountConfig.GitDetails.FilePath = "pipelines/" + string(p.OrgIdentifier) + "/" + p.Identifier + "/" + pipeline.Identifier + ".yaml"
 				_, err := pipeline.MovePipelineToRemote(&api, accountConfig, string(p.OrgIdentifier), p.Identifier)
 				if err != nil {
 					log.Errorf(color.RedString("Unable to move pipeline - %s", pipeline.Name))
@@ -155,8 +155,8 @@ func main() {
 			log.Infof("Moving found templates to remote")
 			templateBar := pb.ProgressBarTemplate(templateTmpl).Start(len(projectPipelines.Data.Content))
 			for _, template := range projectTemplates {
-				// Set the directory to pipelines and use the identifier as file name
-				accountConfig.GitDetails.FilePath = "templates/" + template.Identifier + ".yaml"
+				// Set the directory to templates and use the identifier as file name
+				accountConfig.GitDetails.FilePath = "templates/" + string(p.OrgIdentifier) + "/" + p.Identifier + "/" + template.Identifier + ".yaml"
 				_, err := template.MoveTemplateToRemote(&api, accountConfig, string(p.OrgIdentifier), p.Identifier)
 				if err != nil {
 					log.Errorf(color.RedString("Unable to move template - %s", template.Name))
@@ -272,29 +272,35 @@ func main() {
 		log.Warnf(color.HiYellowString("These files (count:%d) failed while downloading from account level: \n%s", len(failedProjectFiles), strings.Join(failedProjectFiles, ",\n")))
 	}
 
+	log.Infof(boldCyan.Sprintf("---Creating Git Repo---"))
 	// Init empty repo inside the filestore directory
 	cmd := exec.Command("git", "init")
 	cmd.Dir = "./filestore"
 	err = cmd.Run()
 	if err != nil {
-		log.Errorf("Unable to init git repo - %s", err)
+		log.Errorf(color.RedString("Unable to init git repo - %s", err))
 	}
+
+	log.Infof(color.GreenString("Git repo initialized"))
 	// Add files to git repo
 	cmd = exec.Command("git", "add", ".")
 	cmd.Dir = "./filestore"
 	err = cmd.Run()
 	if err != nil {
-		log.Errorf("Unable to add files to git repo - %s", err)
+		log.Errorf(color.RedString("Unable to add files to git repo - %s", err))
 		return
 	}
+	log.Info(color.GreenString("Files added to git repo"))
+
 	// Commit files to git repo
 	cmd = exec.Command("git", "commit", "-m", "Initial Filestore commit")
 	cmd.Dir = "./filestore"
 	err = cmd.Run()
 	if err != nil {
-		log.Errorf("Unable to commit files to git repo - %s", err)
+		log.Errorf(color.RedString("Unable to commit files to git repo - %s", err))
 		return
 	}
+	log.Info(color.GreenString("Files committed to git repo"))
 
 	// Set remote url to git repo
 	var url string
@@ -312,7 +318,7 @@ func main() {
 			accountConfig.GitDetails.ConnectorRef,
 		)
 		if err != nil {
-			log.Errorf("Unable to get connector - %s", err)
+			log.Errorf(color.RedString("Unable to get connector - %s", err))
 			return
 		}
 		url = conn.Spec.URL + ".git"
@@ -322,16 +328,17 @@ func main() {
 	cmd.Dir = "./filestore"
 	err = cmd.Run()
 	if err != nil {
-		log.Errorf("Unable to commit files to git repo - %s", err)
+		log.Errorf(color.RedString("Unable to commit files to git repo - %s", err))
 		return
 	}
+	log.Info(color.GreenString("Remote url set to git repo"))
 
 	// Push files to git repo
 	var branch string
 	if accountConfig.FileStoreConfig.Branch != "" {
 		branch = accountConfig.FileStoreConfig.Branch
 	} else {
-		log.Errorf("File Store branch is not set")
+		log.Errorf(color.RedString("File Store branch is not set"))
 		return
 	}
 
@@ -340,7 +347,7 @@ func main() {
 	cmd.Dir = "./filestore"
 	err = cmd.Run()
 	if err != nil {
-		log.Errorf("Branch %s does not exist - %s", branch, err)
+		log.Warnf(color.YellowString("Branch %s does not exist", branch))
 		log.Infof("Creating branch %s", branch)
 
 		// Create new branch
@@ -348,18 +355,20 @@ func main() {
 		cmd.Dir = "./filestore"
 		err = cmd.Run()
 		if err != nil {
-			log.Errorf("Unable to create branch %s - %s", branch, err)
+			log.Errorf(color.RedString("Unable to create branch %s - %s", branch, err))
 			return
 		}
 	}
+	log.Infof("Branch %s exists", branch)
 
 	// Push files to git repo
 	cmd = exec.Command("git", "push", "origin", branch)
 	cmd.Dir = "./filestore"
 	err = cmd.Run()
 	if err != nil {
-		log.Errorf("Unable to push files to git repo - %s", err)
+		log.Errorf(color.RedString("Unable to push files to git repo - %s", err))
 		return
 	}
+	log.Info(color.GreenString("Files pushed to git repo!"))
 
 }
