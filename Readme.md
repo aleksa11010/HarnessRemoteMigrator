@@ -45,10 +45,25 @@ fileStoreConfig:
 If no repo URL is provided, the connector from GitDetails/FileStoreConfig will be used to pull the URL from the spec.
 
 ### Running the Migration Utility
-You can run the migration utility using the following command:
+You can run the migration utility using the following commands:
+
+**Run for all supported entities:**
 ```
-./harness-remote-migrator -config /path/to/config.yaml
+./harness-remote-migrator -config /path/to/config.yaml -all
 ```
+**Run ONLY for pipelines:**
+```
+./harness-remote-migrator -config /path/to/config.yaml -pipelines
+```
+**Run ONLY for templates:**
+```
+./harness-remote-migrator -config /path/to/config.yaml -templates
+```
+**Run ONLY for file store:**
+```
+./harness-remote-migrator -config /path/to/config.yaml -filestore
+```
+**You can use any combination of above commands.**
 
 ### CLI Arguments
 ***To be added***
