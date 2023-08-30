@@ -47,7 +47,7 @@ If no repo URL is provided, the connector from GitDetails/FileStoreConfig will b
 ### Running the Migration Utility
 You can run the migration utility using the following command:
 ```
-./remote_migrator -config /path/to/config.yaml
+./harness-remote-migrator -config /path/to/config.yaml
 ```
 
 ### CLI Arguments
