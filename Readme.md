@@ -8,7 +8,7 @@ The Harness Migration Utility is a tool designed to facilitate the migration of 
 ## Prerequisites
 Before running this utility tool, ensure that you have a Git connector on your account with the appropriate permissions.
 
-If you are providing the identifier of your Git connector, prefix it with 'account' or 'org' if the account is not located under the project. For migrating multiple projects, use an account or org level connector that has access to all projects.
+If you are providing the identifier of your Git connector, prefix it with 'account' or 'org' if the connector is not located under the project. For migrating multiple projects, use an account or org level connector that has access to all projects.
 
 ## Usage
 The utility can be run in two ways: by providing a Configuration YAML file or by providing CLI arguments.
