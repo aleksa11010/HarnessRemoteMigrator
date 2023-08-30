@@ -13,8 +13,6 @@ jobs:
         goarch: [amd64, arm64]
         exclude:
           - goarch: arm64
-            goos: darwin
-          - goarch: arm64
             goos: windows
     steps:
       - uses: actions/checkout@v3
@@ -25,5 +23,5 @@ jobs:
           goarch: ${{ matrix.goarch }}
           goversion: 1.19
           project_path: "."
-          binary_name: "remote-migrator"
+          binary_name: "harness-remote-upgrade"
           ldflags: ${{ format('-X "main.Version={0}"', github.ref_name) }}
