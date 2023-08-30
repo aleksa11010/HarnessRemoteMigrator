@@ -85,6 +85,13 @@ func main() {
 		APIKey:  accountConfig.ApiKey,
 	}
 
+	if !scope.Pipelines && !scope.Templates && !scope.FileStore {
+		log.Errorf(color.RedString("You need to specify at least one type of entity to migrate!"))
+		log.Errorf(color.RedString("Please use -pipelines, -templates or -filestore flags"))
+		log.Errorf(color.RedString("If you want to migrate all entities, use -all flag"))
+		return
+	}
+
 	log.Infof("Getting projects for account %s", accountConfig.AccountIdentifier)
 	projects, err := api.GetAllProjects(accountConfig.AccountIdentifier)
 	if err != nil {
