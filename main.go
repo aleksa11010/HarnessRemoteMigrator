@@ -134,6 +134,8 @@ func main() {
 			}
 			projectList = append(projectList, project)
 		}
+	} else {
+		projectList = append(projectList, projects.Data.Content...)
 	}
 
 	log.Infof("Processing total of %d projects", len(projectList))
