@@ -99,6 +99,10 @@ func main() {
 		return
 	}
 	log.Infof(color.BlueString("Found total of %d projects", len(projects.Data.Content)))
+	if len(projects.Data.Content) == 0 {
+		log.Errorf(color.RedString("Did not find any projects!"))
+		log.Errorf(color.RedString("Please check your token and/or configuration file."))
+	}
 
 	log.Infof("Filtering projects based on configuration...")
 	var projectList []harness.ProjectsContent
