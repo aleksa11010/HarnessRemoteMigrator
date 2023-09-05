@@ -102,6 +102,7 @@ func main() {
 	if len(projects.Data.Content) == 0 {
 		log.Errorf(color.RedString("Did not find any projects!"))
 		log.Errorf(color.RedString("Please check your token and/or configuration file."))
+		return
 	}
 
 	log.Infof("Filtering projects based on configuration...")
