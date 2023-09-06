@@ -301,22 +301,10 @@ func (f *FileStoreContent) DownloadFile(api *APIRequest, account, org, project, 
 }
 
 func (api *APIRequest) GetConnector(account, org, project, identifier string) (ConnectorClass, error) {
-	var params map[string]string
-	if project == "" && org == "" {
-		params = map[string]string{
-			"accountIdentifier": account,
-		}
-	} else if org != "" && project == "" {
-		params = map[string]string{
-			"accountIdentifier": account,
-			"orgIdentifier":     org,
-		}
-	} else {
-		params = map[string]string{
-			"accountIdentifier": account,
-			"orgIdentifier":     org,
-			"projectIdentifier": project,
-		}
+	params := map[string]string{
+		"accountIdentifier": account,
+		"orgIdentifier":     org,
+		"projectIdentifier": project,
 	}
 
 	resp, err := api.Client.R().
@@ -336,4 +324,32 @@ func (api *APIRequest) GetConnector(account, org, project, identifier string) (C
 	}
 
 	return connector.Data.Connector, nil
+}
+
+func (api *APIRequest) GetService(account, org, project, identifier string) (ServiceClass, error) {
+	params := map[string]string{
+		"accountIdentifier": account,
+		"orgIdentifier":     org,
+		"projectIdentifier": project,
+	}
+
+	resp, err := api.Client.R().
+		SetHeader("x-api-key", api.APIKey).
+		SetHeader("Content-Type", "application/json").
+		SetQueryParams(params).
+		SetPathParam("org", org).
+		SetPathParam("project", project).
+		SetPathParam("identifier", identifier).
+		Get(api.BaseURL + "/v1/orgs/{org}/projects/{project}/services/{identifier}")
+	if err != nil {
+		return ServiceClass{}, err
+	}
+
+	service := Service{}
+	err = json.Unmarshal(resp.Body(), &service)
+	if err != nil {
+		return ServiceClass{}, err
+	}
+
+	return service.Service, nil
 }
