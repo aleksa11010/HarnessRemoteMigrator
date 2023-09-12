@@ -111,7 +111,7 @@ func main() {
 		for _, project := range projects.Data.Content {
 			skip := true
 			for _, include := range accountConfig.TargetProjects {
-				if project.Project.Name == include {
+				if project.Project.Name == include || project.Project.Identifier == include {
 					log.Infof(color.BlueString("Project %s is tageted for migration, adding...", project.Project.Name))
 					skip = false
 					break
@@ -127,7 +127,7 @@ func main() {
 		for _, project := range projects.Data.Content {
 			skip := false
 			for _, exclude := range accountConfig.ExcludeProjects {
-				if project.Project.Name == exclude {
+				if project.Project.Name == exclude || project.Project.Identifier == exclude {
 					log.Infof(color.BlueString("Project %s is excluded from migration, skipping...", project.Project.Name))
 					skip = true
 					break
