@@ -176,6 +176,7 @@ func main() {
 					_, err := pipeline.MovePipelineToRemote(&api, accountConfig, string(p.OrgIdentifier), p.Identifier)
 					if err != nil {
 						log.Errorf(color.RedString("Unable to move pipeline - %s", pipeline.Name))
+						log.Errorf(color.RedString(err.Error()))
 						failedPipelines = append(failedPipelines, pipeline.Name)
 					}
 					pipelineBar.Increment()
@@ -204,6 +205,7 @@ func main() {
 					_, err := template.MoveTemplateToRemote(&api, accountConfig, string(p.OrgIdentifier), p.Identifier)
 					if err != nil {
 						log.Errorf(color.RedString("Unable to move template - %s", template.Name))
+						log.Errorf(color.RedString(err.Error()))
 						failedTemplates = append(failedTemplates, template.Name)
 					}
 					templateBar.Increment()
