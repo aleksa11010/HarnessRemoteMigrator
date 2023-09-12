@@ -90,3 +90,4 @@ After downloading and structuring the files, they are committed and pushed to re
 1. Pipelines
 2. Templates
 3. File Store
+4. Service Manifests/Values

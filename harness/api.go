@@ -17,11 +17,6 @@ type APIRequest struct {
 	APIKey  string
 }
 
-type Entities struct {
-	EntityType   string
-	EntityResult interface{}
-}
-
 func GetAccountIDFromAPIKey(apiKey string) string {
 	accountId := strings.Split(apiKey, ".")[1]
 	if accountId == "" {
@@ -318,6 +313,9 @@ func (api *APIRequest) GetConnector(account, org, project, identifier string) (C
 		"projectIdentifier": project,
 	}
 
+	if strings.Contains(identifier, ".") {
+		identifier = strings.Split(identifier, ".")[1]
+	}
 	resp, err := api.Client.R().
 		SetHeader("x-api-key", api.APIKey).
 		SetHeader("Content-Type", "application/json").
@@ -337,7 +335,7 @@ func (api *APIRequest) GetConnector(account, org, project, identifier string) (C
 	return connector.Data.Connector, nil
 }
 
-func (api *APIRequest) GetService(account, org, project, identifier string) (ServiceClass, error) {
+func (api *APIRequest) GetService(account, org, project string) ([]*ServiceClass, error) {
 	params := map[string]string{
 		"accountIdentifier": account,
 		"orgIdentifier":     org,
@@ -350,17 +348,48 @@ func (api *APIRequest) GetService(account, org, project, identifier string) (Ser
 		SetQueryParams(params).
 		SetPathParam("org", org).
 		SetPathParam("project", project).
-		SetPathParam("identifier", identifier).
-		Get(api.BaseURL + "/v1/orgs/{org}/projects/{project}/services/{identifier}")
+		Get(api.BaseURL + "/v1/orgs/{org}/projects/{project}/services")
 	if err != nil {
-		return ServiceClass{}, err
+		return []*ServiceClass{}, err
 	}
 
-	service := Service{}
+	service := []*Service{}
 	err = json.Unmarshal(resp.Body(), &service)
 	if err != nil {
-		return ServiceClass{}, err
+		return []*ServiceClass{}, err
 	}
 
-	return service.Service, nil
+	serviceList := []*ServiceClass{}
+	for _, s := range service {
+		serviceList = append(serviceList, &s.Service)
+	}
+
+	return serviceList, nil
+}
+
+func (api *APIRequest) UpdateService(service ServiceRequest, account string) error {
+	params := map[string]string{
+		"accountIdentifier": account,
+	}
+	resp, err := api.Client.R().
+		SetHeader("x-api-key", api.APIKey).
+		SetHeader("Content-Type", "application/json").
+		SetQueryParams(params).
+		SetBody(service).
+		Put(api.BaseURL + "/ng/api/servicesV2")
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode() != 200 {
+		ar := ApiResponse{}
+		err = json.Unmarshal(resp.Body(), &ar)
+		if err != nil {
+			return err
+		}
+		errMsg := fmt.Sprintf("CorrelationId: %s, ResponseMessages: %+v", ar.CorrelationID, ar.ResponseMessages)
+		return fmt.Errorf(errMsg)
+	}
+
+	return nil
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/fatih/color"
 	"github.com/go-resty/resty/v2"
 	"github.com/sirupsen/logrus"
+	"gopkg.in/yaml.v2"
 )
 
 func main() {
@@ -145,6 +147,7 @@ func main() {
 
 	log.Infof("Processing total of %d projects", len(projectList))
 	pipelineTmpl := `{{ blue "Processing Pipelines: " }} {{ bar . "<" "-" (cycle . "↖" "↗" "↘" "↙" ) "." ">"}} {{percent .}} `
+	serviceTmpl := `{{ blue "Processing Services: " }} {{ bar . "<" "-" (cycle . "↖" "↗" "↘" "↙" ) "." ">"}} {{percent .}} `
 	templateTmpl := `{{ blue "Processing Templates: " }} {{ bar . "<" "-" (cycle . "↖" "↗" "↘" "↙" ) "." ">"}} {{percent .}} `
 	fileTmpl := `{{ blue "Downloading files: " }} {{ bar . "<" "-" (cycle . "↖" "↗" "↘" "↙" ) "." ">"}} {{percent .}} `
 	var pipelines []harness.PipelineContent
@@ -232,7 +235,7 @@ func main() {
 	}
 
 	if scope.FileStore {
-		var failedFiles, failedOrgFiles, failedProjectFiles []string
+		var failedFiles, failedOrgFiles, failedProjectFiles, failedServices []string
 		log.Infof("Getting file store for account %s", accountConfig.AccountIdentifier)
 		accountFiles, err := api.GetAllAccountFiles(accountConfig.AccountIdentifier)
 		if err != nil {
@@ -323,6 +326,8 @@ func main() {
 		// Init empty repo inside the filestore directory
 		cmd := exec.Command("git", "init")
 		cmd.Dir = "./filestore"
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
 		err = cmd.Run()
 		if err != nil {
 			log.Errorf(color.RedString("Unable to init git repo - %s", err))
@@ -332,6 +337,8 @@ func main() {
 		// Add files to git repo
 		cmd = exec.Command("git", "add", ".")
 		cmd.Dir = "./filestore"
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
 		err = cmd.Run()
 		if err != nil {
 			log.Errorf(color.RedString("Unable to add files to git repo - %s", err))
@@ -342,6 +349,8 @@ func main() {
 		// Commit files to git repo
 		cmd = exec.Command("git", "commit", "-m", "Initial Filestore commit")
 		cmd.Dir = "./filestore"
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
 		err = cmd.Run()
 		if err != nil {
 			log.Errorf(color.RedString("Unable to commit files to git repo - %s", err))
@@ -373,6 +382,8 @@ func main() {
 
 		cmd = exec.Command("git", "remote", "add", "origin", url)
 		cmd.Dir = "./filestore"
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
 		err = cmd.Run()
 		if err != nil {
 			log.Errorf(color.RedString("Unable to commit files to git repo - %s", err))
@@ -392,6 +403,8 @@ func main() {
 		// Check if branch exists
 		cmd = exec.Command("git", "show-ref", "--verify", "--quiet", "refs/heads/"+branch)
 		cmd.Dir = "./filestore"
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
 		err = cmd.Run()
 		if err != nil {
 			log.Warnf(color.YellowString("Branch %s does not exist", branch))
@@ -400,6 +413,9 @@ func main() {
 			// Create new branch
 			cmd = exec.Command("git", "checkout", "-b", branch)
 			cmd.Dir = "./filestore"
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+
 			err = cmd.Run()
 			if err != nil {
 				log.Errorf(color.RedString("Unable to create branch %s - %s", branch, err))
@@ -411,11 +427,97 @@ func main() {
 		// Push files to git repo
 		cmd = exec.Command("git", "push", "origin", branch)
 		cmd.Dir = "./filestore"
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
 		err = cmd.Run()
 		if err != nil {
 			log.Errorf(color.RedString("Unable to push files to git repo - %s", err))
 			return
 		}
 		log.Info(color.GreenString("Files pushed to git repo!"))
+
+		log.Infof(boldCyan.Sprintf("---Getting Connector Info---"))
+		conn, err := api.GetConnector(
+			accountConfig.AccountIdentifier,
+			accountConfig.FileStoreConfig.Organization,
+			accountConfig.FileStoreConfig.Project,
+			accountConfig.GitDetails.ConnectorRef,
+		)
+		if err != nil {
+			log.Errorf("Unable to get Connector info - %s", err)
+			return
+		}
+		log.Infof(boldCyan.Sprintf("---Getting Service Info---"))
+		var serviceList []*harness.ServiceClass
+		for _, project := range projectList {
+			p := project.Project
+			log.Infof(boldCyan.Sprintf("---Processing project %s!---", p.Name))
+			service, err := api.GetService(accountConfig.AccountIdentifier, string(p.OrgIdentifier), p.Identifier)
+			if err != nil {
+				log.Errorf(color.RedString("Unable to get service - %s", err))
+			}
+			serviceList = append(serviceList, service...)
+
+		}
+		log.Infof(color.BlueString("Found total of %d services", len(serviceList)))
+		log.Infof(boldCyan.Sprintf("---Processing Services---"))
+		serviceBar := pb.ProgressBarTemplate(serviceTmpl).Start(len(serviceList))
+		for _, service := range serviceList {
+			// log.Infof(boldCyan.Sprintf("---Processing service %s!---", service.Name))
+			serviceYaml, err := service.ParseYAML()
+			if err != nil {
+				log.Errorf(color.RedString("Unable to parse service YAML - %s", err))
+			}
+			var update = false
+			for i := range serviceYaml.Service.ServiceDefinition.Spec.Manifests {
+				m := &serviceYaml.Service.ServiceDefinition.Spec.Manifests[i]
+				if m.Manifest.Spec.Store.Type == "Harness" {
+					m.Manifest.Spec.Store.Type = conn.Type
+					var files []string
+					for _, file := range m.Manifest.Spec.Store.Spec.Files {
+						files = append(files, fmt.Sprintf("org/%s/%s%s", service.Org, service.Project, file))
+					}
+					var valueFiles []string
+					if len(m.Manifest.Spec.ValuesPaths) > 0 {
+						for _, v := range m.Manifest.Spec.ValuesPaths {
+							valueFiles = append(valueFiles, fmt.Sprintf("org/%s/%s%s", service.Org, service.Project, v))
+						}
+					}
+					log.Infof("Setting following file paths : %+v", files)
+					m.Manifest.Spec.Store.Spec.Paths = files
+					m.Manifest.Spec.Store.Spec.Branch = accountConfig.GitDetails.BranchName
+					m.Manifest.Spec.Store.Spec.ConnectorRef = accountConfig.GitDetails.ConnectorRef
+					m.Manifest.Spec.Store.Spec.GitFetchType = "Branch"
+					m.Manifest.Spec.ValuesPaths = valueFiles
+
+					update = true
+				} else {
+					log.Infof("Manifest [%s] for Service [%s] is already remote!", m.Manifest.Identifier, service.Name)
+				}
+			}
+
+			if update {
+				// Marshal the modified ServiceYaml back to a YAML string
+				modifiedYAML, err := yaml.Marshal(serviceYaml)
+				if err != nil {
+					log.Errorf(color.RedString("Unable to marshal modified service YAML - %s", err))
+					failedServices = append(failedServices, service.Name)
+				} else {
+					service.YAML = string(modifiedYAML)
+				}
+
+				err = service.UpdateService(&api)
+				if err != nil {
+					log.Errorf(color.RedString("Unable to move service manifests - %s", service.Name))
+					failedServices = append(failedServices, service.Name)
+				}
+			}
+			serviceBar.Increment()
+		}
+		serviceBar.Finish()
+
+		if len(failedServices) > 0 {
+			log.Warnf(color.HiYellowString("These Service Manifests (count:%d) failed while moving to remote: \n%s", len(failedServices), strings.Join(failedServices, ",\n")))
+		}
 	}
 }
