@@ -51,3 +51,21 @@ func (c *Config) ReadConfig(filepath string) *Config {
 
 	return c
 }
+
+type ApiResponse struct {
+	Status           string            `json:"status"`
+	Code             string            `json:"code"`
+	Message          string            `json:"message"`
+	CorrelationID    string            `json:"correlationId"`
+	DetailedMessage  interface{}       `json:"detailedMessage"`
+	ResponseMessages []ResponseMessage `json:"responseMessages"`
+	Metadata         interface{}       `json:"metadata"`
+}
+
+type ResponseMessage struct {
+	Code         string        `json:"code"`
+	Level        string        `json:"level"`
+	Message      string        `json:"message"`
+	Exception    interface{}   `json:"exception"`
+	FailureTypes []interface{} `json:"failureTypes"`
+}

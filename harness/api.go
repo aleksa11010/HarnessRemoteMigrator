@@ -123,8 +123,13 @@ func (p *PipelineContent) MovePipelineToRemote(api *APIRequest, c Config, org, p
 		Post(api.BaseURL + fmt.Sprintf("/v1/orgs/%s/projects/%s/pipelines/%s/move-config", org, project, p.Identifier))
 
 	if resp.StatusCode() != 200 {
-		err = fmt.Errorf(string(resp.Body()))
-		return "", err
+		ar := ApiResponse{}
+		err = json.Unmarshal(resp.Body(), &ar)
+		if err != nil {
+			return "", err
+		}
+		errMsg := fmt.Sprintf("CorrelationId: %s, ResponseMessages: %+v", ar.CorrelationID, ar.ResponseMessages)
+		return "", fmt.Errorf(errMsg)
 	}
 
 	return string(resp.Body()), err
@@ -135,8 +140,8 @@ func (t *Template) MoveTemplateToRemote(api *APIRequest, c Config, org, project 
 		SetHeader("x-api-key", api.APIKey).
 		SetHeader("Harness-Account", c.AccountIdentifier).
 		SetHeader("Content-Type", "application/json").
+		SetPathParam("templateIdentifier", t.Identifier).
 		SetQueryParams(map[string]string{
-			"templateIdenfier":  t.Identifier,
 			"accountIdentifier": c.AccountIdentifier,
 			"projectIdentifier": project,
 			"orgIdentifier":     t.Org,
@@ -144,15 +149,21 @@ func (t *Template) MoveTemplateToRemote(api *APIRequest, c Config, org, project 
 			"connectorRef":      c.GitDetails.ConnectorRef,
 			"repoName":          c.GitDetails.RepoName,
 			"branch":            c.GitDetails.BranchName,
+			"isNewBranch":       "false",
 			"filePath":          c.GitDetails.FilePath,
 			"commitMsg":         c.GitDetails.CommitMessage,
 			"moveConfigType":    "INLINE_TO_REMOTE",
 		}).
-		Post(api.BaseURL + fmt.Sprintf("/template/api/templates/move-config/%s", t.Identifier))
+		Post(api.BaseURL + "/template/api/templates/move-config/{templateIdentifier}")
 
 	if resp.StatusCode() != 200 {
-		err = fmt.Errorf(string(resp.Body()))
-		return "", err
+		ar := ApiResponse{}
+		err = json.Unmarshal(resp.Body(), &ar)
+		if err != nil {
+			return "", err
+		}
+		errMsg := fmt.Sprintf("CorrelationId: %s, ResponseMessages: %+v", ar.CorrelationID, ar.ResponseMessages)
+		return "", fmt.Errorf(errMsg)
 	}
 
 	return string(resp.Body()), err
