@@ -8,7 +8,9 @@ The Harness Migration Utility is a tool designed to facilitate the migration of 
 ## Prerequisites
 Before running this utility tool, ensure that you have a Git connector on your account with the appropriate permissions.
 
-If you are providing the identifier of your Git connector, prefix it with 'account' or 'org' if the connector is not located under the project. For migrating multiple projects, use an account or org level connector that has access to all projects.
+If you are providing the identifier of your Git connector, prefix it with 'account' or 'org' if the connector is not located under the project. 
+
+### ***For migrating multiple projects, use an account or org level connector that has access to all projects.***
 
 ## Usage
 The utility can be run in two ways: by providing a Configuration YAML file or by providing CLI arguments.
@@ -30,12 +32,12 @@ gitDetails: # Setup remote location for pipelines/templates here
   connector_ref: "account.HarnessRemoteTest" # Git Connector Identifiers
   repo_name: "HarnessRemoteTest" # Your Repo name
 fileStoreConfig:
-  branch: "migration" # Branch required to push File Store files
+  branch: "migration" # Branch is required to push File Store files
   # More Configuration (optional)
   url: "https://github.com/aleksa11010/FileStore.git" # Provide Repo URL
   organization: "default" # Connector settings
   project: "migration_project" # Connector settings
-  connector_ref: "account.Connector2"
+  connector_ref: "account.Connector2" # Connector Identifier
 ```
 
 **Note:**
@@ -85,6 +87,8 @@ Example structure:
             └── Foo
 ```
 After downloading and structuring the files, they are committed and pushed to repo based on your configuration.
+
+This folder structure will be used to reference the files in your Services/Environments.
 
 ## Supported Entities
 1. Pipelines
