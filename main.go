@@ -201,7 +201,7 @@ func main() {
 				templateBar := pb.ProgressBarTemplate(templateTmpl).Start(len(projectTemplates))
 				for _, template := range projectTemplates {
 					// Set the directory to templates and use the identifier as file name
-					accountConfig.GitDetails.FilePath = "templates/" + string(p.OrgIdentifier) + "/" + p.Identifier + "/" + template.Identifier + ".yaml"
+					accountConfig.GitDetails.FilePath = "templates/" + string(p.OrgIdentifier) + "/" + p.Identifier + "/" + template.Identifier + "-" + template.VersionLabel + ".yaml"
 					_, err := template.MoveTemplateToRemote(&api, accountConfig, string(p.OrgIdentifier), p.Identifier)
 					if err != nil {
 						log.Errorf(color.RedString("Unable to move template - %s", template.Name))
@@ -301,7 +301,7 @@ func main() {
 				for _, file := range projectFiles {
 					err := file.DownloadFile(&api, accountConfig.AccountIdentifier, string(p.OrgIdentifier), p.Identifier, fmt.Sprintf("org/%s/%s", p.OrgIdentifier, p.Identifier))
 					if err != nil {
-						log.Errorf(color.RedString("Unable to download file - %s", err))
+						log.Errorf(color.RedString("Unable to download file [%s] with identifier [%s] - %s", file.Name, file.Identifier, err))
 						failedProjectFiles = append(failedProjectFiles, file.Name)
 					}
 					projectBar.Increment()
@@ -321,7 +321,7 @@ func main() {
 		}
 		log.Infof(color.GreenString("Processed total of %d files at Project level", len(allProjectFiles)))
 		if len(failedProjectFiles) > 0 {
-			log.Warnf(color.HiYellowString("These files (count:%d) failed while downloading from account level: \n%s", len(failedProjectFiles), strings.Join(failedProjectFiles, ",\n")))
+			log.Warnf(color.HiYellowString("These files (count:%d) failed while downloading: \n%s", len(failedProjectFiles), strings.Join(failedProjectFiles, ",\n")))
 		}
 
 		log.Infof(boldCyan.Sprintf("---Creating Git Repo---"))

@@ -284,7 +284,13 @@ func (f *FileStoreContent) DownloadFile(api *APIRequest, account, org, project, 
 	}
 
 	if resp.StatusCode() != 200 {
-		return fmt.Errorf("unable to download file - %s", err)
+		ar := ApiResponse{}
+		err = json.Unmarshal(resp.Body(), &ar)
+		if err != nil {
+			return err
+		}
+		errMsg := fmt.Sprintf("CorrelationId: %s, ResponseMessages: %+v", ar.CorrelationID, ar.ResponseMessages)
+		return fmt.Errorf(errMsg)
 	}
 
 	err = os.MkdirAll(filepath.Dir("./filestore/"+folder+f.Path), 0755)
