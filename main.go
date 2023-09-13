@@ -301,7 +301,7 @@ func main() {
 			}
 			if len(projectFiles) > 0 {
 				log.Infof("Downloading %d files from project %s", len(projectFiles), p.Name)
-				projectBar := pb.ProgressBarTemplate(fileTmpl).Start(len(accountFiles))
+				projectBar := pb.ProgressBarTemplate(fileTmpl).Start(len(projectFiles))
 				for _, file := range projectFiles {
 					err := file.DownloadFile(&api, accountConfig.AccountIdentifier, string(p.OrgIdentifier), p.Identifier, fmt.Sprintf("org/%s/%s", p.OrgIdentifier, p.Identifier))
 					if err != nil {
@@ -430,7 +430,7 @@ func main() {
 		}
 		log.Infof("Branch %s exists", branch)
 
-		cmd = exec.Command("git", "pull")
+		cmd = exec.Command("git", "pull", "origin", branch)
 		cmd.Dir = "./filestore"
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr

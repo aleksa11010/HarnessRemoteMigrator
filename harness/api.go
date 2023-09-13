@@ -295,6 +295,10 @@ func (f *FileStoreContent) DownloadFile(api *APIRequest, account, org, project, 
 		}
 	}
 
+	if !strings.Contains(f.Path, ".") {
+		return nil
+	}
+
 	err = os.MkdirAll(filepath.Dir("./filestore/filestore/"+folder+f.Path), 0755)
 	if err != nil {
 		return err
