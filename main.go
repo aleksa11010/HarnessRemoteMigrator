@@ -1,9 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
-	"os"
 	"os/exec"
 	"strings"
 
@@ -329,11 +329,11 @@ func main() {
 		}
 
 		log.Infof(boldCyan.Sprintf("---Creating Git Repo---"))
+		var stderr bytes.Buffer
 		// Init empty repo inside the filestore directory
 		cmd := exec.Command("git", "init")
-		cmd.Dir = "./filestore/filestore/filestore"
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
+		cmd.Dir = "./filestore"
+		cmd.Stderr, cmd.Stdout = &stderr, &stderr
 		err = cmd.Run()
 		if err != nil {
 			log.Errorf(color.RedString("Unable to init git repo - %s", err))
@@ -342,9 +342,8 @@ func main() {
 		log.Infof(color.GreenString("Git repo initialized"))
 		// Add files to git repo
 		cmd = exec.Command("git", "add", ".")
-		cmd.Dir = "./filestore/filestore"
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
+		cmd.Dir = "./filestore"
+		cmd.Stderr, cmd.Stdout = &stderr, &stderr
 		err = cmd.Run()
 		if err != nil {
 			log.Errorf(color.RedString("Unable to add files to git repo - %s", err))
@@ -354,13 +353,15 @@ func main() {
 
 		// Commit files to git repo
 		cmd = exec.Command("git", "commit", "-m", "Initial Filestore commit")
-		cmd.Dir = "./filestore/filestore"
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
+		cmd.Dir = "./filestore"
+		cmd.Stderr, cmd.Stdout = &stderr, &stderr
 		err = cmd.Run()
 		if err != nil {
-			log.Errorf(color.RedString("Unable to commit files to git repo - %s", err))
-			return
+			errorMessage := stderr.String()
+			if !strings.Contains(errorMessage, "nothing to commit") {
+				log.Printf("Unable to commit files to git repo - %s", errorMessage)
+				return
+			}
 		}
 		log.Info(color.GreenString("Files committed to git repo"))
 
@@ -388,12 +389,14 @@ func main() {
 
 		cmd = exec.Command("git", "remote", "add", "origin", url)
 		cmd.Dir = "./filestore"
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
+		cmd.Stderr, cmd.Stdout = &stderr, &stderr
 		err = cmd.Run()
 		if err != nil {
-			log.Errorf(color.RedString("Unable to commit files to git repo - %s", err))
-			return
+			errorMessage := stderr.String()
+			if !strings.Contains(errorMessage, "remote origin already exists.") {
+				log.Printf("Unable to add remote origin to git repo - %s", errorMessage)
+				return
+			}
 		}
 		log.Info(color.GreenString("Remote url set to git repo"))
 
@@ -409,8 +412,7 @@ func main() {
 		// Check if branch exists
 		cmd = exec.Command("git", "show-ref", "--verify", "--quiet", "refs/heads/"+branch)
 		cmd.Dir = "./filestore"
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
+		cmd.Stderr, cmd.Stdout = &stderr, &stderr
 		err = cmd.Run()
 		if err != nil {
 			log.Warnf(color.YellowString("Branch %s does not exist", branch))
@@ -419,8 +421,7 @@ func main() {
 			// Create new branch
 			cmd = exec.Command("git", "checkout", "-b", branch)
 			cmd.Dir = "./filestore"
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
+			cmd.Stderr, cmd.Stdout = &stderr, &stderr
 
 			err = cmd.Run()
 			if err != nil {
@@ -432,19 +433,20 @@ func main() {
 
 		cmd = exec.Command("git", "pull", "origin", branch)
 		cmd.Dir = "./filestore"
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
+		cmd.Stderr, cmd.Stdout = &stderr, &stderr
 		err = cmd.Run()
 		if err != nil {
-			log.Errorf(color.RedString("Unable to pull files from git repo - %s", err))
-			return
+			errorMessage := stderr.String()
+			if !strings.Contains(errorMessage, "couldn't find remote ref") {
+				log.Printf("Unable to pull from remote repo - %s", errorMessage)
+				return
+			}
 		}
 
 		// Push files to git repo
 		cmd = exec.Command("git", "push", "origin", branch)
 		cmd.Dir = "./filestore"
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
+		cmd.Stderr, cmd.Stdout = &stderr, &stderr
 		err = cmd.Run()
 		if err != nil {
 			log.Errorf(color.RedString("Unable to push files to git repo - %s", err))
@@ -452,32 +454,31 @@ func main() {
 		}
 		log.Info(color.GreenString("Files pushed to git repo!"))
 
-		log.Infof(boldCyan.Sprintf("---Getting Connector Info---"))
-		conn, err := api.GetConnector(
-			accountConfig.AccountIdentifier,
-			accountConfig.FileStoreConfig.Organization,
-			accountConfig.FileStoreConfig.Project,
-			accountConfig.GitDetails.ConnectorRef,
-		)
-		if err != nil {
-			log.Errorf("Unable to get Connector info - %s", err)
-			return
-		}
-		log.Infof(boldCyan.Sprintf("---Getting Service Info---"))
-		var serviceList []*harness.ServiceClass
-		for _, project := range projectList {
-			p := project.Project
-			log.Infof(boldCyan.Sprintf("---Processing project %s!---", p.Name))
-			service, err := api.GetService(accountConfig.AccountIdentifier, string(p.OrgIdentifier), p.Identifier)
-			if err != nil {
-				log.Errorf(color.RedString("Unable to get service - %s", err))
-			}
-			serviceList = append(serviceList, service...)
-
-		}
-		log.Infof(color.BlueString("Found total of %d services", len(serviceList)))
-
 		if scope.ServiceManifests {
+			log.Infof(boldCyan.Sprintf("---Getting Connector Info---"))
+			conn, err := api.GetConnector(
+				accountConfig.AccountIdentifier,
+				accountConfig.FileStoreConfig.Organization,
+				accountConfig.FileStoreConfig.Project,
+				accountConfig.GitDetails.ConnectorRef,
+			)
+			if err != nil {
+				log.Errorf("Unable to get Connector info - %s", err)
+				return
+			}
+			log.Infof(boldCyan.Sprintf("---Getting Service Info---"))
+			var serviceList []*harness.ServiceClass
+			for _, project := range projectList {
+				p := project.Project
+				log.Infof(boldCyan.Sprintf("---Processing project %s!---", p.Name))
+				service, err := api.GetService(accountConfig.AccountIdentifier, string(p.OrgIdentifier), p.Identifier)
+				if err != nil {
+					log.Errorf(color.RedString("Unable to get service - %s", err))
+				}
+				serviceList = append(serviceList, service...)
+
+			}
+			log.Infof(color.BlueString("Found total of %d services", len(serviceList)))
 			log.Infof(boldCyan.Sprintf("---Processing Services---"))
 			serviceBar := pb.ProgressBarTemplate(serviceTmpl).Start(len(serviceList))
 			for _, service := range serviceList {
