@@ -37,27 +37,31 @@ func main() {
 	pipelinesFlag := flag.Bool("pipelines", false, "Migrate pipelines.")
 	templatesFlag := flag.Bool("templates", false, "Migrate templates.")
 	filestoreFlag := flag.Bool("filestore", false, "Migrate filestore.")
+	serviceManifests := flag.Bool("service", false, "Migrate service manifests.")
 
 	flag.Parse()
 
 	type MigrationScope struct {
-		Pipelines bool
-		Templates bool
-		FileStore bool
+		Pipelines        bool
+		Templates        bool
+		FileStore        bool
+		ServiceManifests bool
 	}
 	scope := MigrationScope{}
 
 	if *allFlag {
 		scope = MigrationScope{
-			Pipelines: true,
-			Templates: true,
-			FileStore: true,
+			Pipelines:        true,
+			Templates:        true,
+			FileStore:        true,
+			ServiceManifests: true,
 		}
 	} else {
 		scope = MigrationScope{
-			Pipelines: *pipelinesFlag,
-			Templates: *templatesFlag,
-			FileStore: *filestoreFlag,
+			Pipelines:        *pipelinesFlag,
+			Templates:        *templatesFlag,
+			FileStore:        *filestoreFlag,
+			ServiceManifests: *serviceManifests,
 		}
 	}
 
@@ -327,7 +331,7 @@ func main() {
 		log.Infof(boldCyan.Sprintf("---Creating Git Repo---"))
 		// Init empty repo inside the filestore directory
 		cmd := exec.Command("git", "init")
-		cmd.Dir = "./filestore"
+		cmd.Dir = "./filestore/filestore/filestore"
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		err = cmd.Run()
@@ -338,7 +342,7 @@ func main() {
 		log.Infof(color.GreenString("Git repo initialized"))
 		// Add files to git repo
 		cmd = exec.Command("git", "add", ".")
-		cmd.Dir = "./filestore"
+		cmd.Dir = "./filestore/filestore"
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		err = cmd.Run()
@@ -350,7 +354,7 @@ func main() {
 
 		// Commit files to git repo
 		cmd = exec.Command("git", "commit", "-m", "Initial Filestore commit")
-		cmd.Dir = "./filestore"
+		cmd.Dir = "./filestore/filestore"
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		err = cmd.Run()
@@ -472,64 +476,67 @@ func main() {
 
 		}
 		log.Infof(color.BlueString("Found total of %d services", len(serviceList)))
-		log.Infof(boldCyan.Sprintf("---Processing Services---"))
-		serviceBar := pb.ProgressBarTemplate(serviceTmpl).Start(len(serviceList))
-		for _, service := range serviceList {
-			// log.Infof(boldCyan.Sprintf("---Processing service %s!---", service.Name))
-			serviceYaml, err := service.ParseYAML()
-			if err != nil {
-				log.Errorf(color.RedString("Unable to parse service YAML - %s", err))
-			}
-			var update = false
-			for i := range serviceYaml.Service.ServiceDefinition.Spec.Manifests {
-				m := &serviceYaml.Service.ServiceDefinition.Spec.Manifests[i]
-				if m.Manifest.Spec.Store.Type == "Harness" {
-					m.Manifest.Spec.Store.Type = conn.Type
-					var files []string
-					for _, file := range m.Manifest.Spec.Store.Spec.Files {
-						files = append(files, fmt.Sprintf("org/%s/%s%s", service.Org, service.Project, file))
-					}
-					var valueFiles []string
-					if len(m.Manifest.Spec.ValuesPaths) > 0 {
-						for _, v := range m.Manifest.Spec.ValuesPaths {
-							valueFiles = append(valueFiles, fmt.Sprintf("org/%s/%s%s", service.Org, service.Project, v))
+
+		if scope.ServiceManifests {
+			log.Infof(boldCyan.Sprintf("---Processing Services---"))
+			serviceBar := pb.ProgressBarTemplate(serviceTmpl).Start(len(serviceList))
+			for _, service := range serviceList {
+				// log.Infof(boldCyan.Sprintf("---Processing service %s!---", service.Name))
+				serviceYaml, err := service.ParseYAML()
+				if err != nil {
+					log.Errorf(color.RedString("Unable to parse service YAML - %s", err))
+				}
+				var update = false
+				for i := range serviceYaml.Service.ServiceDefinition.Spec.Manifests {
+					m := &serviceYaml.Service.ServiceDefinition.Spec.Manifests[i]
+					if m.Manifest.Spec.Store.Type == "Harness" {
+						m.Manifest.Spec.Store.Type = conn.Type
+						var files []string
+						for _, file := range m.Manifest.Spec.Store.Spec.Files {
+							files = append(files, fmt.Sprintf("org/%s/%s%s", service.Org, service.Project, file))
 						}
+						var valueFiles []string
+						if len(m.Manifest.Spec.ValuesPaths) > 0 {
+							for _, v := range m.Manifest.Spec.ValuesPaths {
+								valueFiles = append(valueFiles, fmt.Sprintf("org/%s/%s%s", service.Org, service.Project, v))
+							}
+						}
+						log.Infof("Setting following file paths : %+v", files)
+						m.Manifest.Spec.Store.Spec.Paths = files
+						m.Manifest.Spec.Store.Spec.Branch = accountConfig.GitDetails.BranchName
+						m.Manifest.Spec.Store.Spec.ConnectorRef = accountConfig.GitDetails.ConnectorRef
+						m.Manifest.Spec.Store.Spec.GitFetchType = "Branch"
+						m.Manifest.Spec.ValuesPaths = valueFiles
+
+						update = true
+					} else {
+						log.Infof("Manifest [%s] for Service [%s] is already remote!", m.Manifest.Identifier, service.Name)
 					}
-					log.Infof("Setting following file paths : %+v", files)
-					m.Manifest.Spec.Store.Spec.Paths = files
-					m.Manifest.Spec.Store.Spec.Branch = accountConfig.GitDetails.BranchName
-					m.Manifest.Spec.Store.Spec.ConnectorRef = accountConfig.GitDetails.ConnectorRef
-					m.Manifest.Spec.Store.Spec.GitFetchType = "Branch"
-					m.Manifest.Spec.ValuesPaths = valueFiles
-
-					update = true
-				} else {
-					log.Infof("Manifest [%s] for Service [%s] is already remote!", m.Manifest.Identifier, service.Name)
 				}
+
+				if update {
+					// Marshal the modified ServiceYaml back to a YAML string
+					modifiedYAML, err := yaml.Marshal(serviceYaml)
+					if err != nil {
+						log.Errorf(color.RedString("Unable to marshal modified service YAML - %s", err))
+						failedServices = append(failedServices, service.Name)
+					} else {
+						service.YAML = string(modifiedYAML)
+					}
+
+					err = service.UpdateService(&api)
+					if err != nil {
+						log.Errorf(color.RedString("Unable to move service manifests - %s", service.Name))
+						failedServices = append(failedServices, service.Name)
+					}
+				}
+				serviceBar.Increment()
 			}
+			serviceBar.Finish()
 
-			if update {
-				// Marshal the modified ServiceYaml back to a YAML string
-				modifiedYAML, err := yaml.Marshal(serviceYaml)
-				if err != nil {
-					log.Errorf(color.RedString("Unable to marshal modified service YAML - %s", err))
-					failedServices = append(failedServices, service.Name)
-				} else {
-					service.YAML = string(modifiedYAML)
-				}
-
-				err = service.UpdateService(&api)
-				if err != nil {
-					log.Errorf(color.RedString("Unable to move service manifests - %s", service.Name))
-					failedServices = append(failedServices, service.Name)
-				}
+			if len(failedServices) > 0 {
+				log.Warnf(color.HiYellowString("These Service Manifests (count:%d) failed while moving to remote: \n%s", len(failedServices), strings.Join(failedServices, ",\n")))
 			}
-			serviceBar.Increment()
-		}
-		serviceBar.Finish()
-
-		if len(failedServices) > 0 {
-			log.Warnf(color.HiYellowString("These Service Manifests (count:%d) failed while moving to remote: \n%s", len(failedServices), strings.Join(failedServices, ",\n")))
 		}
 	}
 }

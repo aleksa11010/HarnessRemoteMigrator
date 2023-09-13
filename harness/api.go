@@ -290,15 +290,17 @@ func (f *FileStoreContent) DownloadFile(api *APIRequest, account, org, project, 
 			return err
 		}
 		errMsg := fmt.Sprintf("CorrelationId: %s, ResponseMessages: %+v", ar.CorrelationID, ar.ResponseMessages)
-		return fmt.Errorf(errMsg)
+		if !strings.Contains(errMsg, "Downloading folder not supported") {
+			return fmt.Errorf(errMsg)
+		}
 	}
 
-	err = os.MkdirAll(filepath.Dir("./filestore/"+folder+f.Path), 0755)
+	err = os.MkdirAll(filepath.Dir("./filestore/filestore/"+folder+f.Path), 0755)
 	if err != nil {
 		return err
 	}
 
-	out, err := os.Create("./filestore/" + folder + f.Path)
+	out, err := os.Create("./filestore/filestore/" + folder + f.Path)
 	if err != nil {
 		return err
 	}
