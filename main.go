@@ -426,6 +426,16 @@ func main() {
 		}
 		log.Infof("Branch %s exists", branch)
 
+		cmd = exec.Command("git", "pull")
+		cmd.Dir = "./filestore"
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		err = cmd.Run()
+		if err != nil {
+			log.Errorf(color.RedString("Unable to pull files from git repo - %s", err))
+			return
+		}
+
 		// Push files to git repo
 		cmd = exec.Command("git", "push", "origin", branch)
 		cmd.Dir = "./filestore"
