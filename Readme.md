@@ -65,6 +65,10 @@ You can run the migration utility using the following commands:
 ```
 ./harness-remote-migrator -config /path/to/config.yaml -filestore
 ```
+**Run Service Manifest migration - MUST BE ACCOMPANIED BY File Store flag:**
+```
+./harness-remote-migrator -config /path/to/config.yaml -filestore -service
+```
 **You can use any combination of above commands.**
 
 ### CLI Arguments
