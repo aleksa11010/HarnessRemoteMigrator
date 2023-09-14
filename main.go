@@ -339,6 +339,16 @@ func main() {
 			log.Errorf(color.RedString("Unable to init git repo - %s", err))
 		}
 
+		// Set pull default to merge
+		cmd = exec.Command("git", "config", "pull.rebase", "false")
+		cmd.Dir = "./filestore"
+		cmd.Stderr, cmd.Stdout = &stderr, &stderr
+		err = cmd.Run()
+		if err != nil {
+			errorMessage := stderr.String()
+			log.Errorf(color.RedString("Unable to set git pull.rebase to false - Git Operations log:\n %s", errorMessage))
+		}
+
 		log.Infof(color.GreenString("Git repo initialized"))
 		// Add files to git repo
 		cmd = exec.Command("git", "add", ".")
@@ -346,7 +356,7 @@ func main() {
 		cmd.Stderr, cmd.Stdout = &stderr, &stderr
 		err = cmd.Run()
 		if err != nil {
-			log.Errorf(color.RedString("Unable to add files to git repo - %s", err))
+			log.Errorf(color.RedString("Unable to add files to git repo - Git Operations log:\n %s", err))
 			return
 		}
 		log.Info(color.GreenString("Files added to git repo"))
@@ -359,7 +369,7 @@ func main() {
 		if err != nil {
 			errorMessage := stderr.String()
 			if !strings.Contains(errorMessage, "nothing to commit") {
-				log.Printf("Unable to commit files to git repo - %s", errorMessage)
+				log.Errorf("Unable to commit files to git repo - Git Operations log:\n %s", errorMessage)
 				return
 			}
 		}
@@ -394,7 +404,7 @@ func main() {
 		if err != nil {
 			errorMessage := stderr.String()
 			if !strings.Contains(errorMessage, "remote origin already exists.") {
-				log.Printf("Unable to add remote origin to git repo - %s", errorMessage)
+				log.Errorf("Unable to add remote origin to git repo - Git Operations log:\n %s", errorMessage)
 				return
 			}
 		}
@@ -405,7 +415,7 @@ func main() {
 		if accountConfig.FileStoreConfig.Branch != "" {
 			branch = accountConfig.FileStoreConfig.Branch
 		} else {
-			log.Errorf(color.RedString("File Store branch is not set"))
+			log.Error(color.RedString("File Store branch is not set"))
 			return
 		}
 
@@ -438,7 +448,7 @@ func main() {
 		if err != nil {
 			errorMessage := stderr.String()
 			if !strings.Contains(errorMessage, "couldn't find remote ref") {
-				log.Printf("Unable to pull from remote repo - %s", errorMessage)
+				log.Errorf("Unable to pull from remote repo - Git Operations log:\n %s", errorMessage)
 				return
 			}
 		}
@@ -449,7 +459,7 @@ func main() {
 		cmd.Stderr, cmd.Stdout = &stderr, &stderr
 		err = cmd.Run()
 		if err != nil {
-			log.Errorf(color.RedString("Unable to push files to git repo - %s", err))
+			log.Errorf(color.RedString("Unable to push files to git repo - Git Operations log:\n %s", err))
 			return
 		}
 		log.Info(color.GreenString("Files pushed to git repo!"))
