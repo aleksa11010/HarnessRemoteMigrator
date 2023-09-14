@@ -38,30 +38,34 @@ func main() {
 	templatesFlag := flag.Bool("templates", false, "Migrate templates.")
 	filestoreFlag := flag.Bool("filestore", false, "Migrate filestore.")
 	serviceManifests := flag.Bool("service", false, "Migrate service manifests.")
+	forceServiceUpdate := flag.Bool("update-service", false, "Force update remote service manifests")
 
 	flag.Parse()
 
 	type MigrationScope struct {
-		Pipelines        bool
-		Templates        bool
-		FileStore        bool
-		ServiceManifests bool
+		Pipelines            bool
+		Templates            bool
+		FileStore            bool
+		ServiceManifests     bool
+		ForceUpdateManifests bool
 	}
 	scope := MigrationScope{}
 
 	if *allFlag {
 		scope = MigrationScope{
-			Pipelines:        true,
-			Templates:        true,
-			FileStore:        true,
-			ServiceManifests: true,
+			Pipelines:            true,
+			Templates:            true,
+			FileStore:            true,
+			ServiceManifests:     true,
+			ForceUpdateManifests: *forceServiceUpdate,
 		}
 	} else {
 		scope = MigrationScope{
-			Pipelines:        *pipelinesFlag,
-			Templates:        *templatesFlag,
-			FileStore:        *filestoreFlag,
-			ServiceManifests: *serviceManifests,
+			Pipelines:            *pipelinesFlag,
+			Templates:            *templatesFlag,
+			FileStore:            *filestoreFlag,
+			ServiceManifests:     *serviceManifests,
+			ForceUpdateManifests: *forceServiceUpdate,
 		}
 	}
 
@@ -465,6 +469,10 @@ func main() {
 		log.Info(color.GreenString("Files pushed to git repo!"))
 
 		if scope.ServiceManifests {
+			var targetServices, excludeServices []map[string]string
+			targetServices = accountConfig.TargetServices
+			excludeServices = accountConfig.ExcludeServices
+
 			log.Infof(boldCyan.Sprintf("---Getting Connector Info---"))
 			conn, err := api.GetConnector(
 				accountConfig.AccountIdentifier,
@@ -485,14 +493,33 @@ func main() {
 				if err != nil {
 					log.Errorf(color.RedString("Unable to get service - %s", err))
 				}
-				serviceList = append(serviceList, service...)
-
+				if len(targetServices) > 0 {
+					var tageted []*harness.ServiceClass
+					for _, s := range service {
+						for _, t := range targetServices {
+							if value, exists := t[s.Identifier]; exists && value == s.Project {
+								log.Infof("Service [%s] in project [%s] is targeted for migration!", s.Name, s.Project)
+								tageted = append(tageted, s)
+							}
+						}
+					}
+				} else if len(excludeServices) > 0 {
+					for _, s := range service {
+						for _, t := range targetServices {
+							if value, exists := t[s.Identifier]; exists && value == s.Project {
+								log.Infof("Service [%s] in project [%s] is targeted for exclusion, skipping!", s.Name, s.Project)
+								continue
+							}
+						}
+					}
+				} else {
+					serviceList = append(serviceList, service...)
+				}
 			}
 			log.Infof(color.BlueString("Found total of %d services", len(serviceList)))
 			log.Infof(boldCyan.Sprintf("---Processing Services---"))
 			serviceBar := pb.ProgressBarTemplate(serviceTmpl).Start(len(serviceList))
 			for _, service := range serviceList {
-				// log.Infof(boldCyan.Sprintf("---Processing service %s!---", service.Name))
 				serviceYaml, err := service.ParseYAML()
 				if err != nil {
 					log.Errorf(color.RedString("Unable to parse service YAML - %s", err))
@@ -504,12 +531,32 @@ func main() {
 						m.Manifest.Spec.Store.Type = conn.Type
 						var files []string
 						for _, file := range m.Manifest.Spec.Store.Spec.Files {
-							files = append(files, fmt.Sprintf("org/%s/%s%s", service.Org, service.Project, file))
+							files = append(files, fmt.Sprintf("filestore/org/%s/%s%s", service.Org, service.Project, file))
 						}
 						var valueFiles []string
 						if len(m.Manifest.Spec.ValuesPaths) > 0 {
 							for _, v := range m.Manifest.Spec.ValuesPaths {
-								valueFiles = append(valueFiles, fmt.Sprintf("org/%s/%s%s", service.Org, service.Project, v))
+								valueFiles = append(valueFiles, fmt.Sprintf("filestore/org/%s/%s%s", service.Org, service.Project, v))
+							}
+						}
+						log.Infof("Setting following file paths : %+v", files)
+						m.Manifest.Spec.Store.Spec.Paths = files
+						m.Manifest.Spec.Store.Spec.Branch = accountConfig.GitDetails.BranchName
+						m.Manifest.Spec.Store.Spec.ConnectorRef = accountConfig.GitDetails.ConnectorRef
+						m.Manifest.Spec.Store.Spec.GitFetchType = "Branch"
+						m.Manifest.Spec.ValuesPaths = valueFiles
+
+						update = true
+					} else if scope.ForceUpdateManifests {
+						m.Manifest.Spec.Store.Type = conn.Type
+						var files []string
+						for _, file := range m.Manifest.Spec.Store.Spec.Files {
+							files = append(files, fmt.Sprintf("filestore/org/%s/%s%s", service.Org, service.Project, file))
+						}
+						var valueFiles []string
+						if len(m.Manifest.Spec.ValuesPaths) > 0 {
+							for _, v := range m.Manifest.Spec.ValuesPaths {
+								valueFiles = append(valueFiles, fmt.Sprintf("filestore/org/%s/%s%s", service.Org, service.Project, v))
 							}
 						}
 						log.Infof("Setting following file paths : %+v", files)

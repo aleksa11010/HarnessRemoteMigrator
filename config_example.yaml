@@ -6,6 +6,12 @@ targetProjects:
 excludeProjects:
   - "exclude_project1"
   - "exclude_project2"
+targetServices:
+  - "service1": "project1"
+  - "service2": "project2"
+excludeServices:
+  - "exclude_service1": "project1"
+  - "exclude_service2": "project2"
 gitDetails:
   branch_name: "migration"
   commit_message: "Migrating piplines from inline to remote"

@@ -13,12 +13,14 @@ type Account struct {
 }
 
 type Config struct {
-	AccountIdentifier string          `yaml:"accountIdentifier"`
-	ApiKey            string          `yaml:"apiKey"`
-	TargetProjects    []string        `yaml:"targetProjects"`
-	ExcludeProjects   []string        `yaml:"excludeProjects"`
-	GitDetails        GitDetails      `yaml:"gitDetails"`
-	FileStoreConfig   FileStoreConfig `yaml:"fileStoreConfig"`
+	AccountIdentifier string              `yaml:"accountIdentifier"`
+	ApiKey            string              `yaml:"apiKey"`
+	TargetProjects    []string            `yaml:"targetProjects"`
+	ExcludeProjects   []string            `yaml:"excludeProjects"`
+	GitDetails        GitDetails          `yaml:"gitDetails"`
+	FileStoreConfig   FileStoreConfig     `yaml:"fileStoreConfig"`
+	TargetServices    []map[string]string `yaml:"targetServices"`
+	ExcludeServices   []map[string]string `yaml:"excludeServices"`
 }
 
 type GitDetails struct {

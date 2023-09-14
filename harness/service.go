@@ -1,6 +1,7 @@
 package harness
 
 import (
+	"fmt"
 	"log"
 
 	"gopkg.in/yaml.v2"
@@ -97,4 +98,30 @@ func (s *ServiceClass) UpdateService(api *APIRequest) error {
 		return err
 	}
 	return nil
+}
+
+func UpdateManifest(m *ManifestType, service ServiceType, conn ConnType, accountConfig AccountConfigType) bool {
+	if m.Manifest.Spec.Store.Type != "Harness" && !scope.ForceUpdateManifests {
+		log.Infof("Manifest [%s] for Service [%s] is already remote!", m.Manifest.Identifier, service.Name)
+		return false
+	}
+
+	m.Manifest.Spec.Store.Type = conn.Type
+	var files, valueFiles []string
+
+	for _, file := range m.Manifest.Spec.Store.Spec.Files {
+		files = append(files, fmt.Sprintf("filestore/org/%s/%s%s", service.Org, service.Project, file))
+	}
+	for _, v := range m.Manifest.Spec.ValuesPaths {
+		valueFiles = append(valueFiles, fmt.Sprintf("filestore/org/%s/%s%s", service.Org, service.Project, v))
+	}
+
+	log.Infof("Setting following file paths : %+v", files)
+	m.Manifest.Spec.Store.Spec.Paths = files
+	m.Manifest.Spec.Store.Spec.Branch = accountConfig.GitDetails.BranchName
+	m.Manifest.Spec.Store.Spec.ConnectorRef = accountConfig.GitDetails.ConnectorRef
+	m.Manifest.Spec.Store.Spec.GitFetchType = "Branch"
+	m.Manifest.Spec.ValuesPaths = valueFiles
+
+	return true
 }

@@ -26,6 +26,12 @@ targetProjects: # Target specific projects by providing their identifiers here
 excludeProjects: # Exclude specific projects by providing their identifiers here
   - "exclude_project1"
   - "exclude_project2"
+targetServices: # Similar to projects, we can target specific services
+  - "service1": "project1" # Difference is we need to provide Service and Project ID
+  - "service2": "project2"
+excludeServices: # Exclude specific services by providing Service and Project IDs
+  - "exclude_service1": "project1"
+  - "exclude_service2": "project2"
 gitDetails: # Setup remote location for pipelines/templates here
   branch_name: "migration" # Branch must exist before running 
   commit_message: "Migrating pipelines from inline to remote" # Your commit message
@@ -65,9 +71,13 @@ You can run the migration utility using the following commands:
 ```
 ./harness-remote-migrator -config /path/to/config.yaml -filestore
 ```
-**Run Service Manifest migration - MUST BE ACCOMPANIED BY File Store flag:**
+**Run Service Manifest migration - MUST BE ACCOMPANIED BY file store flag:**
 ```
 ./harness-remote-migrator -config /path/to/config.yaml -filestore -service
+```
+**If the service has remote manifest already - we need to force the update to new file store location**
+```
+./harness-remote-migrator -config /path/to/config.yaml -filestore -service -update-service
 ```
 **You can use any combination of above commands.**
 
