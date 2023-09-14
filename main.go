@@ -441,7 +441,7 @@ func main() {
 		}
 		log.Infof("Branch %s exists", branch)
 
-		cmd = exec.Command("git", "pull", "origin", branch)
+		cmd = exec.Command("git", "pull", "origin", branch, "--allow-unrelated-histories")
 		cmd.Dir = "./filestore"
 		cmd.Stderr, cmd.Stdout = &stderr, &stderr
 		err = cmd.Run()
