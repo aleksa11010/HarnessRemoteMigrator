@@ -283,7 +283,7 @@ func main() {
 				log.Infof("Downloading %d files from Organization %s", len(orgFiles), o.Name)
 				orgFileBar := pb.ProgressBarTemplate(fileTmpl).Start(len(accountFiles))
 				for _, file := range orgFiles {
-					err := file.DownloadFile(&api, accountConfig.AccountIdentifier, o.Identifier, "", "org/"+o.Identifier)
+					err := file.DownloadFile(&api, accountConfig.AccountIdentifier, o.Identifier, "", "/"+o.Identifier)
 					if err != nil {
 						log.Errorf(color.RedString("Unable to download file - %s", err))
 						failedOrgFiles = append(failedOrgFiles, file.Name)
@@ -307,7 +307,7 @@ func main() {
 				log.Infof("Downloading %d files from project %s", len(projectFiles), p.Name)
 				projectBar := pb.ProgressBarTemplate(fileTmpl).Start(len(projectFiles))
 				for _, file := range projectFiles {
-					err := file.DownloadFile(&api, accountConfig.AccountIdentifier, string(p.OrgIdentifier), p.Identifier, fmt.Sprintf("org/%s/%s", p.OrgIdentifier, p.Identifier))
+					err := file.DownloadFile(&api, accountConfig.AccountIdentifier, string(p.OrgIdentifier), p.Identifier, fmt.Sprintf("/%s/%s", p.OrgIdentifier, p.Identifier))
 					if err != nil {
 						log.Errorf(color.RedString("Unable to download file [%s] with identifier [%s] - %s", file.Name, file.Identifier, err))
 						failedProjectFiles = append(failedProjectFiles, file.Name)
@@ -531,12 +531,12 @@ func main() {
 						m.Manifest.Spec.Store.Type = conn.Type
 						var files []string
 						for _, file := range m.Manifest.Spec.Store.Spec.Files {
-							files = append(files, fmt.Sprintf("filestore/org/%s/%s%s", service.Org, service.Project, file))
+							files = append(files, fmt.Sprintf("filestore/%s/%s%s", service.Org, service.Project, file))
 						}
 						var valueFiles []string
 						if len(m.Manifest.Spec.ValuesPaths) > 0 {
 							for _, v := range m.Manifest.Spec.ValuesPaths {
-								valueFiles = append(valueFiles, fmt.Sprintf("filestore/org/%s/%s%s", service.Org, service.Project, v))
+								valueFiles = append(valueFiles, fmt.Sprintf("filestore/%s/%s%s", service.Org, service.Project, v))
 							}
 						}
 						log.Infof("Setting following file paths : %+v", files)
@@ -551,12 +551,12 @@ func main() {
 						m.Manifest.Spec.Store.Type = conn.Type
 						var files []string
 						for _, file := range m.Manifest.Spec.Store.Spec.Files {
-							files = append(files, fmt.Sprintf("filestore/org/%s/%s%s", service.Org, service.Project, file))
+							files = append(files, fmt.Sprintf("filestore/%s/%s%s", service.Org, service.Project, file))
 						}
 						var valueFiles []string
 						if len(m.Manifest.Spec.ValuesPaths) > 0 {
 							for _, v := range m.Manifest.Spec.ValuesPaths {
-								valueFiles = append(valueFiles, fmt.Sprintf("filestore/org/%s/%s%s", service.Org, service.Project, v))
+								valueFiles = append(valueFiles, fmt.Sprintf("filestore/%s/%s%s", service.Org, service.Project, v))
 							}
 						}
 						log.Infof("Setting following file paths : %+v", files)
