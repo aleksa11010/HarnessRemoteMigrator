@@ -39,6 +39,7 @@ func main() {
 	filestoreFlag := flag.Bool("filestore", false, "Migrate filestore.")
 	serviceManifests := flag.Bool("service", false, "Migrate service manifests.")
 	forceServiceUpdate := flag.Bool("update-service", false, "Force update remote service manifests")
+	overridesFlag := flag.Bool("overrides", false, "Migrate service overrides")
 
 	flag.Parse()
 
@@ -48,6 +49,7 @@ func main() {
 		FileStore            bool
 		ServiceManifests     bool
 		ForceUpdateManifests bool
+		Overrides            bool
 	}
 	scope := MigrationScope{}
 
@@ -58,6 +60,7 @@ func main() {
 			FileStore:            true,
 			ServiceManifests:     true,
 			ForceUpdateManifests: *forceServiceUpdate,
+			Overrides:            true,
 		}
 	} else {
 		scope = MigrationScope{
@@ -66,6 +69,7 @@ func main() {
 			FileStore:            *filestoreFlag,
 			ServiceManifests:     *serviceManifests,
 			ForceUpdateManifests: *forceServiceUpdate,
+			Overrides:            *overridesFlag,
 		}
 	}
 
@@ -494,24 +498,29 @@ func main() {
 					log.Errorf(color.RedString("Unable to get service - %s", err))
 				}
 				if len(targetServices) > 0 {
-					var tageted []*harness.ServiceClass
+					var targeted []*harness.ServiceClass
 					for _, s := range service {
 						for _, t := range targetServices {
 							if value, exists := t[s.Identifier]; exists && value == s.Project {
 								log.Infof("Service [%s] in project [%s] is targeted for migration!", s.Name, s.Project)
-								tageted = append(tageted, s)
+								targeted = append(targeted, s)
 							}
 						}
 					}
+					serviceList = append(serviceList, targeted...)
 				} else if len(excludeServices) > 0 {
+					var targeted []*harness.ServiceClass
 					for _, s := range service {
 						for _, t := range targetServices {
 							if value, exists := t[s.Identifier]; exists && value == s.Project {
 								log.Infof("Service [%s] in project [%s] is targeted for exclusion, skipping!", s.Name, s.Project)
 								continue
+							} else {
+								targeted = append(targeted, s)
 							}
 						}
 					}
+					serviceList = append(serviceList, targeted...)
 				} else {
 					serviceList = append(serviceList, service...)
 				}
