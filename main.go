@@ -106,6 +106,13 @@ func main() {
 		return
 	}
 
+	if scope.ServiceManifests || scope.Overrides && !scope.FileStore {
+		log.Errorf(color.RedString("In order to migrate Service Manifests and/or Service Overrides you need to use FileStore flag!"))
+		log.Errorf(color.RedString("Please use -filestore flag followed by entities you want to migrate, -service or -overrides"))
+		log.Errorf(color.RedString("If you want to migrate all entities, use -all flag"))
+		return
+	}
+
 	log.Infof("Getting projects for account %s", accountConfig.AccountIdentifier)
 	projects, err := api.GetAllProjects(accountConfig.AccountIdentifier)
 	if err != nil {
