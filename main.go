@@ -99,9 +99,9 @@ func main() {
 		APIKey:  accountConfig.ApiKey,
 	}
 
-	if !scope.Pipelines && !scope.Templates && !scope.FileStore {
+	if !scope.Pipelines && !scope.Templates && !scope.FileStore && !scope.Overrides {
 		log.Errorf(color.RedString("You need to specify at least one type of entity to migrate!"))
-		log.Errorf(color.RedString("Please use -pipelines, -templates or -filestore flags"))
+		log.Errorf(color.RedString("Please use -pipelines, -templates, -filestore or -overrides flags"))
 		log.Errorf(color.RedString("If you want to migrate all entities, use -all flag"))
 		return
 	}
@@ -162,6 +162,8 @@ func main() {
 	serviceTmpl := `{{ blue "Processing Services: " }} {{ bar . "<" "-" (cycle . "↖" "↗" "↘" "↙" ) "." ">"}} {{percent .}} `
 	templateTmpl := `{{ blue "Processing Templates: " }} {{ bar . "<" "-" (cycle . "↖" "↗" "↘" "↙" ) "." ">"}} {{percent .}} `
 	fileTmpl := `{{ blue "Downloading files: " }} {{ bar . "<" "-" (cycle . "↖" "↗" "↘" "↙" ) "." ">"}} {{percent .}} `
+	overridesTmpl := `{{ blue "Downloading files: " }} {{ bar . "<" "-" (cycle . "↖" "↗" "↘" "↙" ) "." ">"}} {{percent .}} `
+
 	var pipelines []harness.PipelineContent
 	var templates []harness.Templates
 	var failedPipelines, failedTemplates []string
@@ -604,6 +606,61 @@ func main() {
 			if len(failedServices) > 0 {
 				log.Warnf(color.HiYellowString("These Service Manifests (count:%d) failed while moving to remote: \n%s", len(failedServices), strings.Join(failedServices, ",\n")))
 			}
+		}
+		if scope.Overrides {
+			log.Info(boldCyan.Sprintf("Processing Service overrides"))
+			var environmentList []*harness.EnvironmentClass
+
+			log.Info("Getting environments for Account level")
+			envs, err := api.GetEnvironments(accountConfig.AccountIdentifier, "", "")
+			if err != nil {
+				log.Errorf(color.RedString("Unable to get environments for account level. - %s", err))
+			}
+			environmentList = append(environmentList, envs...)
+
+			orgs, err := api.GetAllOrgs(accountConfig.AccountIdentifier)
+			if err != nil {
+				log.Errorf(color.RedString("Unable to get organizations for account %s - %s", accountConfig.AccountIdentifier, err))
+				return
+			}
+
+			for _, o := range orgs {
+				org := o.Org
+				log.Infof("Getting environements for organization [%s]", org.Identifier)
+				envs, err := api.GetEnvironments(accountConfig.AccountIdentifier, org.Identifier, "")
+				if err != nil {
+					log.Errorf(color.RedString("Unable to get environment for [%s] organization", org.Name))
+				}
+
+				environmentList = append(environmentList, envs...)
+			}
+
+			for _, project := range projectList {
+				p := project.Project
+				envs, err := api.GetEnvironments(accountConfig.AccountIdentifier, string(p.OrgIdentifier), p.Identifier)
+				if err != nil {
+					log.Errorf(color.RedString("Unable to get environments for [%s] project. - %s", p.Name, err))
+				}
+				environmentList = append(environmentList, envs...)
+			}
+
+			overridesBar := pb.ProgressBarTemplate(overridesTmpl).Start(len(environmentList))
+			var overrideList []*harness.ServiceOverrideContent
+			for _, env := range environmentList {
+				//Get All environment overrides
+				overrides, err := api.GetServiceOverrides(env.Identifier, accountConfig.AccountIdentifier, env.OrgIdentifier, env.ProjectIdentifier)
+				if err != nil {
+					log.Errorf("Unable to get service overrides for [%s] environment", env.Name)
+				}
+				overrideList = append(overrideList, overrides...)
+			}
+
+			for i := range overrideList {
+				//Parse and Update YAML of the Service Override and use the Environment API to update the Service Override
+				log.Infof(overrideList[i].YAML)
+			}
+
+			overridesBar.Finish()
 		}
 	}
 }
