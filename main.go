@@ -616,6 +616,17 @@ func main() {
 		}
 		if scope.Overrides {
 			log.Info(boldCyan.Sprintf("Processing Service overrides"))
+			log.Infof(boldCyan.Sprintf("---Getting Connector Info---"))
+			conn, err := api.GetConnector(
+				accountConfig.AccountIdentifier,
+				accountConfig.FileStoreConfig.Organization,
+				accountConfig.FileStoreConfig.Project,
+				accountConfig.GitDetails.ConnectorRef,
+			)
+			if err != nil {
+				log.Errorf("Unable to get Connector info - %s", err)
+				return
+			}
 			var environmentList []*harness.EnvironmentClass
 
 			log.Info("Getting environments for Account level")
@@ -636,7 +647,8 @@ func main() {
 				log.Infof("Getting environements for organization [%s]", org.Identifier)
 				envs, err := api.GetEnvironments(accountConfig.AccountIdentifier, org.Identifier, "")
 				if err != nil {
-					log.Errorf(color.RedString("Unable to get environment for [%s] organization", org.Name))
+					log.Errorf(color.RedString("Unable to get environment for [%s] organization - %s", org.Name, err))
+					continue
 				}
 
 				environmentList = append(environmentList, envs...)
@@ -660,13 +672,78 @@ func main() {
 					log.Errorf("Unable to get service overrides for [%s] environment", env.Name)
 				}
 				overrideList = append(overrideList, overrides...)
-			}
 
-			for i := range overrideList {
-				//Parse and Update YAML of the Service Override and use the Environment API to update the Service Override
-				log.Infof(overrideList[i].YAML)
-			}
+				for i := range overrideList {
+					overrideYaml, err := overrideList[i].ParseYAML()
+					if err != nil {
+						log.Errorf(color.RedString("Unable to parse service override YAML - %s", err))
+					}
+					var update = false
+					for i := range overrideYaml.ServiceOverrides.Manifests {
+						m := &overrideYaml.ServiceOverrides.Manifests[i]
+						if m.Manifest.Spec.Store.Type == "Harness" {
+							m.Manifest.Spec.Store.Type = conn.Type
+							var files []string
+							for _, file := range m.Manifest.Spec.Store.Spec.Files {
+								files = append(files, fmt.Sprintf("filestore/%s/%s%s", env.OrgIdentifier, env.ProjectIdentifier, file))
+							}
+							var valueFiles []string
+							if len(m.Manifest.Spec.ValuesPaths) > 0 {
+								for _, v := range m.Manifest.Spec.ValuesPaths {
+									valueFiles = append(valueFiles, fmt.Sprintf("filestore/%s/%s%s", env.OrgIdentifier, env.ProjectIdentifier, v))
+								}
+							}
+							log.Infof("Setting following file paths : %+v", files)
+							m.Manifest.Spec.Store.Spec.Paths = files
+							m.Manifest.Spec.Store.Spec.Branch = accountConfig.GitDetails.BranchName
+							m.Manifest.Spec.Store.Spec.ConnectorRef = accountConfig.GitDetails.ConnectorRef
+							m.Manifest.Spec.Store.Spec.GitFetchType = "Branch"
+							m.Manifest.Spec.ValuesPaths = valueFiles
 
+							update = true
+						} else if scope.ForceUpdateManifests {
+							m.Manifest.Spec.Store.Type = conn.Type
+							var files []string
+							for _, file := range m.Manifest.Spec.Store.Spec.Files {
+								files = append(files, fmt.Sprintf("filestore/%s/%s%s", env.OrgIdentifier, env.ProjectIdentifier, file))
+							}
+							var valueFiles []string
+							if len(m.Manifest.Spec.ValuesPaths) > 0 {
+								for _, v := range m.Manifest.Spec.ValuesPaths {
+									valueFiles = append(valueFiles, fmt.Sprintf("filestore/%s/%s%s", env.OrgIdentifier, env.ProjectIdentifier, v))
+								}
+							}
+							log.Infof("Setting following file paths : %+v", files)
+							m.Manifest.Spec.Store.Spec.Paths = files
+							m.Manifest.Spec.Store.Spec.Branch = accountConfig.GitDetails.BranchName
+							m.Manifest.Spec.Store.Spec.ConnectorRef = accountConfig.GitDetails.ConnectorRef
+							m.Manifest.Spec.Store.Spec.GitFetchType = "Branch"
+							m.Manifest.Spec.ValuesPaths = valueFiles
+
+							update = true
+						} else {
+							log.Infof("ServiceOverride [%s] for Environment [%s] is already remote!", m.Manifest.Identifier, overrideList[i].EnvironmentRef)
+						}
+						if update {
+							// Marshal the modified ServiceYaml back to a YAML string
+							modifiedYAML, err := yaml.Marshal(overrideYaml)
+							if err != nil {
+								log.Errorf(color.RedString("Unable to marshal modified service override YAML - %s", err))
+								failedServices = append(failedServices, env.Name)
+							} else {
+								overrideList[i].YAML = string(modifiedYAML)
+							}
+
+							err = overrideList[i].UpdateEnvironment(&api)
+							if err != nil {
+								log.Errorf(color.RedString("Unable to move service override manifests for environment [%s]", env.Name))
+								failedServices = append(failedServices, env.Name)
+							}
+						}
+					}
+					overridesBar.Increment()
+				}
+			}
 			overridesBar.Finish()
 		}
 	}

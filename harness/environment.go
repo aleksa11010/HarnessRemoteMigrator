@@ -14,18 +14,21 @@ type Environment struct {
 }
 
 type EnvironmentData struct {
-	TotalPages    int64                `json:"totalPages"`
-	TotalItems    int64                `json:"totalItems"`
-	PageItemCount int64                `json:"pageItemCount"`
-	PageSize      int64                `json:"pageSize"`
-	Content       []EnvironmentContent `json:"content"`
-	PageIndex     int64                `json:"pageIndex"`
-	Empty         bool                 `json:"empty"`
-	PageToken     interface{}          `json:"pageToken"`
+	TotalPages    int64                 `json:"totalPages"`
+	TotalItems    int64                 `json:"totalItems"`
+	PageItemCount int64                 `json:"pageItemCount"`
+	PageSize      int64                 `json:"pageSize"`
+	Content       []*EnvironmentContent `json:"content"`
+	PageIndex     int64                 `json:"pageIndex"`
+	Empty         bool                  `json:"empty"`
+	PageToken     interface{}           `json:"pageToken"`
 }
 
 type EnvironmentContent struct {
 	Environment    EnvironmentClass `json:"environment"`
+	EnvironmentRef string           `json:"environmentRef"`
+	ServiceRef     string           `json:"serviceRef"`
+	YAML           string           `json:"yaml"`
 	CreatedAt      int64            `json:"createdAt"`
 	LastModifiedAt int64            `json:"lastModifiedAt"`
 }
@@ -87,8 +90,36 @@ type ServiceOverrideContent struct {
 	YAML              string `json:"yaml"`
 }
 
-func (env *EnvironmentClass) ParseYAML() (*EnvironmentYaml, error) {
-	envYaml := &EnvironmentYaml{}
+type ServiceOverrideYaml struct {
+	ServiceOverrides struct {
+		EnvironmentRef string `yaml:"environmentRef"`
+		ServiceRef     string `yaml:"serviceRef"`
+		Manifests      []struct {
+			Manifest struct {
+				Identifier string `yaml:"identifier"`
+				Type       string `yaml:"type"`
+				Spec       struct {
+					Store struct {
+						Type string `yaml:"type"`
+						Spec struct {
+							ConnectorRef              string   `yaml:"connectorRef"`
+							GitFetchType              string   `yaml:"gitFetchType"`
+							Paths                     []string `yaml:"paths"`
+							Branch                    string   `yaml:"branch"`
+							Files                     []string `yaml:"files"`
+							SkipResourceVersioning    bool     `yaml:"skipResourceVersioning"`
+							EnableDeclarativeRollback bool     `yaml:"enableDeclarativeRollback"`
+						} `yaml:"spec"`
+					} `yaml:"store"`
+					ValuesPaths []string `yaml:"valuesPaths"`
+				} `yaml:"spec"`
+			} `yaml:"manifest"`
+		} `yaml:"manifests"`
+	} `yaml:"serviceOverrides"`
+}
+
+func (env *ServiceOverrideContent) ParseYAML() (*ServiceOverrideYaml, error) {
+	envYaml := &ServiceOverrideYaml{}
 	err := yaml.Unmarshal([]byte(env.YAML), &envYaml)
 	if err != nil {
 		log.Fatalf("Unmarshal: %v", err)
@@ -97,8 +128,14 @@ func (env *EnvironmentClass) ParseYAML() (*EnvironmentYaml, error) {
 	return envYaml, nil
 }
 
-func (env *EnvironmentClass) UpdateEnvironment(api *APIRequest) error {
-	enviroment := &EnvironmentRequest{}
+func (env *ServiceOverrideContent) UpdateEnvironment(api *APIRequest) error {
+	enviroment := &EnvironmentRequest{
+		OrgIdentifier:         env.OrgIdentifier,
+		ProjectIdentifier:     env.ProjectIdentifier,
+		EnvironmentIdentifier: env.EnvironmentRef,
+		ServiceIdentifier:     env.ServiceRef,
+		YAML:                  env.YAML,
+	}
 	err := api.UpdateEnvironment(*enviroment, env.AccountID)
 	if err != nil {
 		return err

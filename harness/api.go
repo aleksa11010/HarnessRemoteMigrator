@@ -409,29 +409,31 @@ func (api *APIRequest) UpdateService(service ServiceRequest, account string) err
 func (api *APIRequest) GetEnvironments(account, org, project string) ([]*EnvironmentClass, error) {
 	params := map[string]string{
 		"accountIdentifier": account,
-		"orgIdentifier":     org,
-		"projectIdentifier": project,
+	}
+	if org != "" {
+		params["orgIdentifier"] = org
+	}
+	if project != "" {
+		params["projectIdentifier"] = project
 	}
 
 	resp, err := api.Client.R().
 		SetHeader("x-api-key", api.APIKey).
 		SetHeader("Content-Type", "application/json").
 		SetQueryParams(params).
-		SetPathParam("org", org).
-		SetPathParam("project", project).
 		Get(api.BaseURL + "/ng/api/environmentsV2")
 	if err != nil {
 		return []*EnvironmentClass{}, err
 	}
 
-	env := []*EnvironmentContent{}
+	env := Environment{}
 	err = json.Unmarshal(resp.Body(), &env)
 	if err != nil {
 		return []*EnvironmentClass{}, err
 	}
 
 	envList := []*EnvironmentClass{}
-	for _, e := range env {
+	for _, e := range env.Data.Content {
 		envList = append(envList, &e.Environment)
 	}
 
@@ -447,7 +449,7 @@ func (api *APIRequest) UpdateEnvironment(env EnvironmentRequest, account string)
 		SetHeader("Content-Type", "application/json").
 		SetQueryParams(params).
 		SetBody(env).
-		Put(api.BaseURL + "/ng/api/servicesV2")
+		Put(api.BaseURL + "/ng/api/environmentsV2/serviceOverrides")
 	if err != nil {
 		return err
 	}
@@ -467,9 +469,10 @@ func (api *APIRequest) UpdateEnvironment(env EnvironmentRequest, account string)
 
 func (api *APIRequest) GetServiceOverrides(environment, account, org, project string) ([]*ServiceOverrideContent, error) {
 	params := map[string]string{
-		"accountIdentifier": account,
-		"orgIdentifier":     org,
-		"projectIdentifier": project,
+		"environmentIdentifier": environment,
+		"accountIdentifier":     account,
+		"orgIdentifier":         org,
+		"projectIdentifier":     project,
 	}
 
 	resp, err := api.Client.R().
@@ -478,16 +481,21 @@ func (api *APIRequest) GetServiceOverrides(environment, account, org, project st
 		SetQueryParams(params).
 		SetPathParam("org", org).
 		SetPathParam("project", project).
-		Get(api.BaseURL + "/ng/api/environmentsV2")
+		Get(api.BaseURL + "/ng/api/environmentsV2/serviceOverrides")
 	if err != nil {
 		return []*ServiceOverrideContent{}, err
 	}
 
-	overrides := []*ServiceOverrideContent{}
+	overrides := ServiceOverride{}
 	err = json.Unmarshal(resp.Body(), &overrides)
 	if err != nil {
 		return []*ServiceOverrideContent{}, err
 	}
 
-	return overrides, nil
+	var overrideList []*ServiceOverrideContent
+	for _, o := range overrides.Data.Content {
+		overrideList = append(overrideList, &o)
+	}
+
+	return overrideList, nil
 }
