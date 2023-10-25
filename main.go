@@ -223,7 +223,7 @@ func main() {
 				for _, template := range projectTemplates {
 					// Set the directory to templates and use the identifier as file name
 					accountConfig.GitDetails.FilePath = "templates/" + string(p.OrgIdentifier) + "/" + p.Identifier + "/" + template.Identifier + "-" + template.VersionLabel + ".yaml"
-					_, err := template.MoveTemplateToRemote(&api, accountConfig, string(p.OrgIdentifier), p.Identifier)
+					_, err := template.MoveTemplateToRemote(&api, accountConfig)
 					if err != nil {
 						log.Errorf(color.RedString("Unable to move template - %s", template.Name))
 						log.Errorf(color.RedString(err.Error()))
@@ -458,7 +458,7 @@ func main() {
 		}
 		log.Infof("Branch %s exists", branch)
 
-		cmd = exec.Command("git", "pull", "origin", branch, "--allow-unrelated-histories")
+		cmd = exec.Command("git", "pull", "origin", branch, "--allow-unrelated-histories", "--no-ff")
 		cmd.Dir = "./filestore"
 		cmd.Stderr, cmd.Stdout = &stderr, &stderr
 		err = cmd.Run()

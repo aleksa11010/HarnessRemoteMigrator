@@ -130,7 +130,7 @@ func (p *PipelineContent) MovePipelineToRemote(api *APIRequest, c Config, org, p
 	return string(resp.Body()), err
 }
 
-func (t *Template) MoveTemplateToRemote(api *APIRequest, c Config, org, project string) (string, error) {
+func (t *Template) MoveTemplateToRemote(api *APIRequest, c Config) (string, error) {
 	resp, err := api.Client.R().
 		SetHeader("x-api-key", api.APIKey).
 		SetHeader("Harness-Account", c.AccountIdentifier).
@@ -138,7 +138,7 @@ func (t *Template) MoveTemplateToRemote(api *APIRequest, c Config, org, project 
 		SetPathParam("templateIdentifier", t.Identifier).
 		SetQueryParams(map[string]string{
 			"accountIdentifier": c.AccountIdentifier,
-			"projectIdentifier": project,
+			"projectIdentifier": t.Project,
 			"orgIdentifier":     t.Org,
 			"versionlabel":      t.VersionLabel,
 			"connectorRef":      c.GitDetails.ConnectorRef,
