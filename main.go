@@ -222,7 +222,7 @@ func main() {
 				templateBar := pb.ProgressBarTemplate(templateTmpl).Start(len(projectTemplates))
 				for _, template := range projectTemplates {
 					// Set the directory to templates and use the identifier as file name
-					accountConfig.GitDetails.FilePath = "templates/" + string(p.OrgIdentifier) + "/" + p.Identifier + "/" + template.Identifier + "-" + template.VersionLabel + ".yaml"
+					accountConfig.GitDetails.FilePath = "templates%2F" + string(p.OrgIdentifier) + "%2F" + p.Identifier + "%2F" + template.Identifier + "-" + template.VersionLabel + ".yaml"
 					_, err := template.MoveTemplateToRemote(&api, accountConfig)
 					if err != nil {
 						log.Errorf(color.RedString("Unable to move template - %s", template.Name))

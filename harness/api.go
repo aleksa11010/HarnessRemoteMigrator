@@ -140,7 +140,7 @@ func (t *Template) MoveTemplateToRemote(api *APIRequest, c Config) (string, erro
 			"accountIdentifier": c.AccountIdentifier,
 			"projectIdentifier": t.Project,
 			"orgIdentifier":     t.Org,
-			"versionlabel":      t.VersionLabel,
+			"versionLabel":      t.VersionLabel,
 			"connectorRef":      c.GitDetails.ConnectorRef,
 			"repoName":          c.GitDetails.RepoName,
 			"branch":            c.GitDetails.BranchName,
