@@ -179,7 +179,6 @@ func main() {
 		log.Infof(boldCyan.Sprintf("---Processing project %s!---", p.Name))
 		// Get all pipelines for the project
 		if scope.Pipelines {
-
 			log.Infof("Getting pipelines for project %s", p.Name)
 			projectPipelines, err := api.GetAllPipelines(accountConfig.AccountIdentifier, string(p.OrgIdentifier), p.Identifier)
 			if err != nil {
@@ -552,17 +551,17 @@ func main() {
 							files = append(files, fmt.Sprintf("filestore/%s/%s%s", service.Org, service.Project, file))
 						}
 						var valueFiles []string
-						if len(m.Manifest.Spec.ValuesPaths) > 0 {
-							for _, v := range m.Manifest.Spec.ValuesPaths {
+						if len(m.Manifest.Spec.Store.ValuesPaths) > 0 {
+							for _, v := range m.Manifest.Spec.Store.ValuesPaths {
 								valueFiles = append(valueFiles, fmt.Sprintf("filestore/%s/%s%s", service.Org, service.Project, v))
 							}
 						}
 						log.Infof("Setting following file paths : %+v", files)
-						m.Manifest.Spec.Store.Spec.Paths = files
+						m.Manifest.Spec.Store.Spec.Files = files
 						m.Manifest.Spec.Store.Spec.Branch = accountConfig.GitDetails.BranchName
 						m.Manifest.Spec.Store.Spec.ConnectorRef = accountConfig.GitDetails.ConnectorRef
 						m.Manifest.Spec.Store.Spec.GitFetchType = "Branch"
-						m.Manifest.Spec.ValuesPaths = valueFiles
+						m.Manifest.Spec.Store.ValuesPaths = valueFiles
 
 						update = true
 					} else if scope.ForceUpdateManifests {
@@ -572,8 +571,8 @@ func main() {
 							files = append(files, fmt.Sprintf("filestore/%s/%s%s", service.Org, service.Project, file))
 						}
 						var valueFiles []string
-						if len(m.Manifest.Spec.ValuesPaths) > 0 {
-							for _, v := range m.Manifest.Spec.ValuesPaths {
+						if len(m.Manifest.Spec.Store.ValuesPaths) > 0 {
+							for _, v := range m.Manifest.Spec.Store.ValuesPaths {
 								valueFiles = append(valueFiles, fmt.Sprintf("filestore/%s/%s%s", service.Org, service.Project, v))
 							}
 						}
@@ -582,7 +581,7 @@ func main() {
 						m.Manifest.Spec.Store.Spec.Branch = accountConfig.GitDetails.BranchName
 						m.Manifest.Spec.Store.Spec.ConnectorRef = accountConfig.GitDetails.ConnectorRef
 						m.Manifest.Spec.Store.Spec.GitFetchType = "Branch"
-						m.Manifest.Spec.ValuesPaths = valueFiles
+						m.Manifest.Spec.Store.ValuesPaths = valueFiles
 
 						update = true
 					} else {
@@ -728,7 +727,7 @@ func main() {
 							// Marshal the modified ServiceYaml back to a YAML string
 							modifiedYAML, err := yaml.Marshal(overrideYaml)
 							if err != nil {
-								log.Errorf(color.RedString("Unable to marshal modified service override YAML - %s", err))
+								log.Errorf(color.RedString("Unable to marshal modified service override YAML - [%s]", err))
 								failedServices = append(failedServices, env.Name)
 							} else {
 								overrideList[i].YAML = string(modifiedYAML)

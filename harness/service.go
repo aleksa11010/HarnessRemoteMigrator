@@ -30,12 +30,50 @@ type ServiceTags struct {
 }
 type ServiceYaml struct {
 	Service struct {
-		Name              string `yaml:"name"`
-		Identifier        string `yaml:"identifier"`
-		OrgIdentifier     string `yaml:"orgIdentifier"`
-		ProjectIdentifier string `yaml:"projectIdentifier"`
+		Name        string `yaml:"name"`
+		Identifier  string `yaml:"identifier"`
+		Description string `yaml:"description"`
+		Tags        []struct {
+			Key   string `yaml:"key"`
+			Value string `yaml:"value"`
+		} `yaml:"tags"`
+		GitOpsEnabled     bool `yaml:"gitOpsEnabled"`
 		ServiceDefinition struct {
+			Type string `yaml:"type"`
 			Spec struct {
+				Store struct {
+					Type string `yaml:"type"`
+					Spec struct {
+						ConnectorRef              string   `yaml:"connectorRef"`
+						GitFetchType              string   `yaml:"gitFetchType"`
+						Paths                     []string `yaml:"paths"`
+						Branch                    string   `yaml:"branch"`
+						Files                     []string `yaml:"files"`
+						SkipResourceVersioning    bool     `yaml:"skipResourceVersioning"`
+						EnableDeclarativeRollback bool     `yaml:"enableDeclarativeRollback"`
+					} `yaml:"spec"`
+				} `yaml:"store"`
+				Variables []struct {
+					Name     string `yaml:"name"`
+					Type     string `yaml:"type"`
+					Value    string `yaml:"value"`
+					Required bool   `yaml:"required"`
+				} `yaml:"variables"`
+				Artifacts struct {
+					Primary struct {
+						PrimaryArtifactRef string `yaml:"primaryArtifactRef"`
+						Sources            []struct {
+							Spec struct {
+								ConnectorRef string `yaml:"connectorRef"`
+								ImagePath    string `yaml:"imagePath"`
+								Tag          string `yaml:"tag"`
+								Region       string `yaml:"region"`
+							} `yaml:"spec"`
+							Identifier string `yaml:"identifier"`
+							Type       string `yaml:"type"`
+						} `yaml:"sources"`
+					} `yaml:"primary"`
+				} `yaml:"artifacts"`
 				Manifests []struct {
 					Manifest struct {
 						Identifier string `yaml:"identifier"`
@@ -52,17 +90,39 @@ type ServiceYaml struct {
 									SkipResourceVersioning    bool     `yaml:"skipResourceVersioning"`
 									EnableDeclarativeRollback bool     `yaml:"enableDeclarativeRollback"`
 								} `yaml:"spec"`
-							} `yaml:"store"`
-							ValuesPaths []string `yaml:"valuesPaths"`
-						} `yaml:"spec"`
-					} `yaml:"manifest"`
-				} `yaml:"manifests"`
-			} `yaml:"spec"`
-			Type string `yaml:"type"`
-		} `yaml:"serviceDefinition"`
-	} `yaml:"service"`
+								ValuesPaths               []string `yaml:"valuesPaths"`
+								SkipResourceVersioning    bool     `yaml:"skipResourceVersioning"`
+								EnableDeclarativeRollback bool     `yaml:"enableDeclarativeRollback"`
+							} `yaml:"spec"`
+						} `yaml:"manifest"`
+					} `yaml:"manifests"`
+					ConfigFiles []struct {
+						ConfigFile struct {
+							Identifier string `yaml:"identifier"`
+							Spec       struct {
+								Store struct {
+									Spec struct {
+										SecretFiles []string `yaml:"secretFiles"`
+									} `yaml:"spec"`
+									Type string `yaml:"type"`
+								} `yaml:"store"`
+								ConfigFileAttributeStepParameters struct {
+									Store struct {
+										Type string `yaml:"type"`
+										Spec struct {
+											Type        string   `yaml:"type"`
+											SecretFiles []string `yaml:"secretFiles"`
+										} `yaml:"spec"`
+									} `yaml:"store"`
+								} `yaml:"configFileAttributeStepParameters"`
+							} `yaml:"spec"`
+						} `yaml:"configFile"`
+					} `yaml:"configFiles"`
+				} `yaml:"spec"`
+			} `yaml:"serviceDefinition"`
+		} `yaml:"service"`
+	}
 }
-
 type ServiceRequest struct {
 	Name              string      `json:"name"`
 	Identifier        string      `json:"identifier"`
