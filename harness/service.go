@@ -41,18 +41,6 @@ type ServiceYaml struct {
 		ServiceDefinition struct {
 			Type string `yaml:"type"`
 			Spec struct {
-				Store struct {
-					Type string `yaml:"type"`
-					Spec struct {
-						ConnectorRef              string   `yaml:"connectorRef"`
-						GitFetchType              string   `yaml:"gitFetchType"`
-						Paths                     []string `yaml:"paths"`
-						Branch                    string   `yaml:"branch"`
-						Files                     []string `yaml:"files"`
-						SkipResourceVersioning    bool     `yaml:"skipResourceVersioning"`
-						EnableDeclarativeRollback bool     `yaml:"enableDeclarativeRollback"`
-					} `yaml:"spec"`
-				} `yaml:"store"`
 				Variables []struct {
 					Name     string `yaml:"name"`
 					Type     string `yaml:"type"`
