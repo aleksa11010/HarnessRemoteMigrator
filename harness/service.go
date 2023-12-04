@@ -30,14 +30,11 @@ type ServiceTags struct {
 }
 type ServiceYaml struct {
 	Service struct {
-		Name        string `yaml:"name"`
-		Identifier  string `yaml:"identifier"`
-		Description string `yaml:"description"`
-		Tags        []struct {
-			Key   string `yaml:"key"`
-			Value string `yaml:"value"`
-		} `yaml:"tags"`
-		GitOpsEnabled     bool `yaml:"gitOpsEnabled"`
+		Name              string            `yaml:"name"`
+		Identifier        string            `yaml:"identifier"`
+		Description       string            `yaml:"description"`
+		Tags              map[string]string `yaml:"tags"`
+		GitOpsEnabled     bool              `yaml:"gitOpsEnabled"`
 		ServiceDefinition struct {
 			Type string `yaml:"type"`
 			Spec struct {
