@@ -14,12 +14,13 @@ type Template struct {
 	Tags           Tags       `json:"tags"`
 	VersionLabel   string     `json:"version_label"`
 	EntityType     string     `json:"entity_type"`
-	ChildType      *string    `json:"child_type"`
+	ChildType      string     `json:"child_type"`
 	Scope          string     `json:"scope"`
 	Version        int64      `json:"version"`
 	GitDetails     GitDetails `json:"git_details"`
 	Updated        int64      `json:"updated"`
-	StoreType      *string    `json:"store_type"`
-	ConnectorRef   *string    `json:"connector_ref"`
+	StoreType      string     `json:"store_type"`
+	ConnectorRef   string     `json:"connector_ref"`
+	YAMLVersion    string     `json:"yaml_version"`
 	StableTemplate bool       `json:"stable_template"`
 }

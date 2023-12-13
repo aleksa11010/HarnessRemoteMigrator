@@ -176,7 +176,7 @@ func main() {
 	overridesTmpl := `{{ blue "Downloading files: " }} {{ bar . "<" "-" (cycle . "↖" "↗" "↘" "↙" ) "." ">"}} {{percent .}} `
 
 	var pipelines []harness.PipelineContent
-	var templates []harness.Templates
+	var templates []harness.Template
 	var failedPipelines, failedTemplates []string
 	for _, project := range projectList {
 		p := project.Project
@@ -215,7 +215,6 @@ func main() {
 		}
 
 		if scope.Templates {
-
 			// Get all templates for the project
 			log.Infof("Getting templates for project %s", project.Project.Name)
 			projectTemplates, err := api.GetAllTemplates(accountConfig.AccountIdentifier, string(p.OrgIdentifier), p.Identifier)
@@ -231,20 +230,26 @@ func main() {
 					// Set the directory to templates and use the identifier as file name
 					if scope.UrlEncoding {
 						accountConfig.GitDetails.FilePath = "templates%2f" + string(p.OrgIdentifier) + "%2F" + p.Identifier + "%2F" + template.Identifier + "-" + template.VersionLabel + ".yaml"
+						template.GitDetails = accountConfig.GitDetails
 					} else {
 						accountConfig.GitDetails.FilePath = "templates/" + string(p.OrgIdentifier) + "/" + p.Identifier + "/" + template.Identifier + "-" + template.VersionLabel + ".yaml"
+						template.GitDetails = accountConfig.GitDetails
 					}
-					_, err := template.MoveTemplateToRemote(&api, accountConfig)
-					if err != nil {
-						log.Errorf(color.RedString("Unable to move template - %s", template.Name))
-						log.Errorf(color.RedString(err.Error()))
-						failedTemplates = append(failedTemplates, template.Name)
+					if template.StoreType == "REMOTE" {
+						log.Infof("Template [%s] Version [%s} is already remote!", template.Identifier, template.VersionLabel)
+					} else {
+						_, err := template.MoveTemplateToRemote(&api, accountConfig)
+						if err != nil {
+							log.Errorf(color.RedString("Unable to move template - %s", template.Name))
+							log.Errorf(color.RedString(err.Error()))
+							failedTemplates = append(failedTemplates, template.Name)
+						}
 					}
 					templateBar.Increment()
 				}
 				templateBar.Finish()
 			}
-			templates = append(templates, projectTemplates)
+			templates = append(templates, projectTemplates...)
 		}
 	}
 	if scope.Pipelines {
