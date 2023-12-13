@@ -40,6 +40,7 @@ func main() {
 	serviceManifests := flag.Bool("service", false, "Migrate service manifests.")
 	forceServiceUpdate := flag.Bool("update-service", false, "Force update remote service manifests")
 	overridesFlag := flag.Bool("overrides", false, "Migrate service overrides")
+	urlEncoding := flag.Bool("url-encode-string", false, "Encode Paths as URL friendly strings")
 
 	flag.Parse()
 
@@ -50,6 +51,7 @@ func main() {
 		ServiceManifests     bool
 		ForceUpdateManifests bool
 		Overrides            bool
+		UrlEncoding          bool
 	}
 	scope := MigrationScope{}
 
@@ -61,6 +63,7 @@ func main() {
 			ServiceManifests:     true,
 			ForceUpdateManifests: *forceServiceUpdate,
 			Overrides:            true,
+			UrlEncoding:          *urlEncoding,
 		}
 	} else {
 		scope = MigrationScope{
@@ -70,6 +73,7 @@ func main() {
 			ServiceManifests:     *serviceManifests,
 			ForceUpdateManifests: *forceServiceUpdate,
 			Overrides:            *overridesFlag,
+			UrlEncoding:          *urlEncoding,
 		}
 	}
 
@@ -192,7 +196,11 @@ func main() {
 				pipelineBar := pb.ProgressBarTemplate(pipelineTmpl).Start(len(projectPipelines.Data.Content))
 				for _, pipeline := range projectPipelines.Data.Content {
 					// Set the directory to pipelines and use the identifier as file name
-					accountConfig.GitDetails.FilePath = "pipelines/" + string(p.OrgIdentifier) + "/" + p.Identifier + "/" + pipeline.Identifier + ".yaml"
+					if scope.UrlEncoding {
+						accountConfig.GitDetails.FilePath = "pipelines%2F" + string(p.OrgIdentifier) + "%2F" + p.Identifier + "%2F" + pipeline.Identifier + ".yaml"
+					} else {
+						accountConfig.GitDetails.FilePath = "pipelines/" + string(p.OrgIdentifier) + "/" + p.Identifier + "/" + pipeline.Identifier + ".yaml"
+					}
 					_, err := pipeline.MovePipelineToRemote(&api, accountConfig, string(p.OrgIdentifier), p.Identifier)
 					if err != nil {
 						log.Errorf(color.RedString("Unable to move pipeline - %s", pipeline.Name))
@@ -221,7 +229,11 @@ func main() {
 				templateBar := pb.ProgressBarTemplate(templateTmpl).Start(len(projectTemplates))
 				for _, template := range projectTemplates {
 					// Set the directory to templates and use the identifier as file name
-					accountConfig.GitDetails.FilePath = "templates%2F" + string(p.OrgIdentifier) + "%2F" + p.Identifier + "%2F" + template.Identifier + "-" + template.VersionLabel + ".yaml"
+					if scope.UrlEncoding {
+						accountConfig.GitDetails.FilePath = "templates%2f" + string(p.OrgIdentifier) + "%2F" + p.Identifier + "%2F" + template.Identifier + "-" + template.VersionLabel + ".yaml"
+					} else {
+						accountConfig.GitDetails.FilePath = "templates/" + string(p.OrgIdentifier) + "/" + p.Identifier + "/" + template.Identifier + "-" + template.VersionLabel + ".yaml"
+					}
 					_, err := template.MoveTemplateToRemote(&api, accountConfig)
 					if err != nil {
 						log.Errorf(color.RedString("Unable to move template - %s", template.Name))

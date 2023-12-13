@@ -81,6 +81,11 @@ You can run the migration utility using the following commands:
 ```
 **You can use any combination of above commands.**
 
+## Utility Commands ##
+
+**URL Encoding for strings**
+- You can use the flag `url-encode-string` to enable the URL friendly encoding of remote paths
+
 ### CLI Arguments
 ***To be added***
 
