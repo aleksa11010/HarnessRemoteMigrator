@@ -75,39 +75,38 @@ type ServiceYaml struct {
 									SkipResourceVersioning    bool     `yaml:"skipResourceVersioning"`
 									EnableDeclarativeRollback bool     `yaml:"enableDeclarativeRollback"`
 								} `yaml:"spec"`
-								ValuesPaths               []string `yaml:"valuesPaths"`
-								SkipResourceVersioning    bool     `yaml:"skipResourceVersioning"`
-								EnableDeclarativeRollback bool     `yaml:"enableDeclarativeRollback"`
-							} `yaml:"spec"`
-						} `yaml:"manifest"`
-					} `yaml:"manifests"`
-					ConfigFiles []struct {
-						ConfigFile struct {
-							Identifier string `yaml:"identifier"`
-							Spec       struct {
+								ValuesPaths []string `yaml:"valuesPaths"`
+							} `yaml:"store"`
+						} `yaml:"spec"`
+					} `yaml:"manifest"`
+				} `yaml:"manifests"`
+				ConfigFiles []struct {
+					ConfigFile struct {
+						Identifier string `yaml:"identifier"`
+						Spec       struct {
+							Store struct {
+								Spec struct {
+									SecretFiles []string `yaml:"secretFiles"`
+								} `yaml:"spec"`
+								Type string `yaml:"type"`
+							} `yaml:"store"`
+							ConfigFileAttributeStepParameters struct {
 								Store struct {
+									Type string `yaml:"type"`
 									Spec struct {
+										Type        string   `yaml:"type"`
 										SecretFiles []string `yaml:"secretFiles"`
 									} `yaml:"spec"`
-									Type string `yaml:"type"`
 								} `yaml:"store"`
-								ConfigFileAttributeStepParameters struct {
-									Store struct {
-										Type string `yaml:"type"`
-										Spec struct {
-											Type        string   `yaml:"type"`
-											SecretFiles []string `yaml:"secretFiles"`
-										} `yaml:"spec"`
-									} `yaml:"store"`
-								} `yaml:"configFileAttributeStepParameters"`
-							} `yaml:"spec"`
-						} `yaml:"configFile"`
-					} `yaml:"configFiles"`
-				} `yaml:"spec"`
-			} `yaml:"serviceDefinition"`
-		} `yaml:"service"`
-	}
+							} `yaml:"configFileAttributeStepParameters"`
+						} `yaml:"spec"`
+					} `yaml:"configFile"`
+				} `yaml:"configFiles"`
+			} `yaml:"spec"`
+		} `yaml:"serviceDefinition"`
+	} `yaml:"service"`
 }
+
 type ServiceRequest struct {
 	Name              string      `json:"name"`
 	Identifier        string      `json:"identifier"`
