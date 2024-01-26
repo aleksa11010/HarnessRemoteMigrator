@@ -530,7 +530,7 @@ func main() {
 			for _, project := range projectList {
 				p := project.Project
 				log.Infof(boldCyan.Sprintf("---Processing project %s!---", p.Name))
-				service, err := api.GetService(accountConfig.AccountIdentifier, string(p.OrgIdentifier), p.Identifier)
+				service, err := api.GetServices(accountConfig.AccountIdentifier, string(p.OrgIdentifier), p.Identifier)
 				if err != nil {
 					log.Errorf(color.RedString("Unable to get service - %s", err))
 				}

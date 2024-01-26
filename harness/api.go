@@ -347,7 +347,7 @@ func (api *APIRequest) GetConnector(account, org, project, identifier string) (C
 	return connector.Data.Connector, nil
 }
 
-func (api *APIRequest) GetService(account, org, project string) ([]*ServiceClass, error) {
+func (api *APIRequest) GetServices(account, org, project string) ([]*ServiceClass, error) {
 	params := map[string]string{
 		"accountIdentifier": account,
 		"orgIdentifier":     org,
