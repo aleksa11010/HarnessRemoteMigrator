@@ -41,6 +41,7 @@ func main() {
 	forceServiceUpdate := flag.Bool("update-service", false, "Force update remote service manifests")
 	overridesFlag := flag.Bool("overrides", false, "Migrate service overrides")
 	urlEncoding := flag.Bool("url-encode-string", false, "Encode Paths as URL friendly strings")
+	cgFolderStructure := flag.Bool("alt-path", false, "CG-like folder structure for Git")
 
 	flag.Parse()
 
@@ -52,6 +53,7 @@ func main() {
 		ForceUpdateManifests bool
 		Overrides            bool
 		UrlEncoding          bool
+		CGFolderStructure    bool
 	}
 	scope := MigrationScope{}
 
@@ -64,6 +66,7 @@ func main() {
 			ForceUpdateManifests: *forceServiceUpdate,
 			Overrides:            true,
 			UrlEncoding:          *urlEncoding,
+			CGFolderStructure:    false,
 		}
 	} else {
 		scope = MigrationScope{
@@ -74,6 +77,7 @@ func main() {
 			ForceUpdateManifests: *forceServiceUpdate,
 			Overrides:            *overridesFlag,
 			UrlEncoding:          *urlEncoding,
+			CGFolderStructure:    *cgFolderStructure,
 		}
 	}
 
@@ -199,7 +203,11 @@ func main() {
 					if scope.UrlEncoding {
 						accountConfig.GitDetails.FilePath = "pipelines%2F" + string(p.OrgIdentifier) + "%2F" + p.Identifier + "%2F" + pipeline.Identifier + ".yaml"
 					} else {
-						accountConfig.GitDetails.FilePath = "pipelines/" + string(p.OrgIdentifier) + "/" + p.Identifier + "/" + pipeline.Identifier + ".yaml"
+						if scope.CGFolderStructure {
+							accountConfig.GitDetails.FilePath = "account" + string(p.OrgIdentifier) + "/" + p.Identifier + "/pipelines/" + pipeline.Identifier + ".yaml"
+						} else {
+							accountConfig.GitDetails.FilePath = "pipelines/" + string(p.OrgIdentifier) + "/" + p.Identifier + "/" + pipeline.Identifier + ".yaml"
+						}
 					}
 					_, err := pipeline.MovePipelineToRemote(&api, accountConfig, string(p.OrgIdentifier), p.Identifier)
 					if err != nil {
@@ -232,8 +240,13 @@ func main() {
 						accountConfig.GitDetails.FilePath = "templates%2f" + string(p.OrgIdentifier) + "%2F" + p.Identifier + "%2F" + template.Identifier + "-" + template.VersionLabel + ".yaml"
 						template.GitDetails = accountConfig.GitDetails
 					} else {
-						accountConfig.GitDetails.FilePath = "templates/" + string(p.OrgIdentifier) + "/" + p.Identifier + "/" + template.Identifier + "-" + template.VersionLabel + ".yaml"
-						template.GitDetails = accountConfig.GitDetails
+						if scope.CGFolderStructure {
+							accountConfig.GitDetails.FilePath = "account/" + string(p.OrgIdentifier) + "/" + p.Identifier + "/templates/" + template.Identifier + "-" + template.VersionLabel + ".yaml"
+							template.GitDetails = accountConfig.GitDetails
+						} else {
+							accountConfig.GitDetails.FilePath = "templates/" + string(p.OrgIdentifier) + "/" + p.Identifier + "/" + template.Identifier + "-" + template.VersionLabel + ".yaml"
+							template.GitDetails = accountConfig.GitDetails
+						}
 					}
 					if template.StoreType == "REMOTE" {
 						log.Infof("Template [%s] Version [%s} is already remote!", template.Identifier, template.VersionLabel)
@@ -272,7 +285,6 @@ func main() {
 		log.Infof(color.GreenString("Moved templates to remote!"))
 		log.Infof(color.GreenString("------"))
 	}
-
 	if scope.FileStore {
 		var failedFiles, failedOrgFiles, failedProjectFiles, failedServices []string
 		log.Infof("Getting file store for account %s", accountConfig.AccountIdentifier)

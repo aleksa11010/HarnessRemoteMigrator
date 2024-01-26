@@ -86,6 +86,9 @@ You can run the migration utility using the following commands:
 **URL Encoding for strings**
 - You can use the flag `url-encode-string` to enable the URL friendly encoding of remote paths
 
+**CG Like Folder structure**
+- You can use the flag `alt-path` to enable the CG-like folder structure in Git. 
+
 ### CLI Arguments
 ***To be added***
 
