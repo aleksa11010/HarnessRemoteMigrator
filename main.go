@@ -586,7 +586,11 @@ func main() {
 							}
 						}
 						log.Infof("Setting following file paths : %+v", files)
-						m.Manifest.Spec.Store.Spec.Files = files
+						if m.Manifest.Spec.Store.Type == "GitLab" {
+							m.Manifest.Spec.Store.Spec.Paths = files
+						} else {
+							m.Manifest.Spec.Store.Spec.Files = files
+						}
 						m.Manifest.Spec.Store.Spec.Branch = accountConfig.GitDetails.BranchName
 						m.Manifest.Spec.Store.Spec.ConnectorRef = accountConfig.GitDetails.ConnectorRef
 						m.Manifest.Spec.Store.Spec.GitFetchType = "Branch"
