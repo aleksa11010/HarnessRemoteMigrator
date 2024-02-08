@@ -574,7 +574,7 @@ func main() {
 				for i := range serviceYaml.Service.ServiceDefinition.Spec.Manifests {
 					m := &serviceYaml.Service.ServiceDefinition.Spec.Manifests[i]
 					if m.Manifest.Spec.Store.Type == "Harness" {
-						m.Manifest.Spec.Store.Type = conn.Type
+						m.Manifest.Spec.Store.Type = harness.GetServiceManifestStoreType(conn.Type)
 						var files []string
 						for _, file := range m.Manifest.Spec.Store.Spec.Files {
 							files = append(files, fmt.Sprintf("filestore/%s/%s%s", service.Org, service.Project, file))
@@ -594,7 +594,7 @@ func main() {
 
 						update = true
 					} else if scope.ForceUpdateManifests {
-						m.Manifest.Spec.Store.Type = conn.Type
+						m.Manifest.Spec.Store.Type = harness.GetServiceManifestStoreType(conn.Type)
 						var files []string
 						for _, file := range m.Manifest.Spec.Store.Spec.Files {
 							files = append(files, fmt.Sprintf("filestore/%s/%s%s", service.Org, service.Project, file))
@@ -630,7 +630,7 @@ func main() {
 
 					err = service.UpdateService(&api)
 					if err != nil {
-						log.Errorf(color.RedString("Unable to move service manifests - %s", service.Name))
+						log.Errorf(color.RedString("Unable to move service manifests - %s <%s>", service.Name, err, conn))
 						failedServices = append(failedServices, service.Name)
 					}
 				}

@@ -26,6 +26,13 @@ func GetAccountIDFromAPIKey(apiKey string) string {
 	return accountId
 }
 
+func GetServiceManifestStoreType(connectorType string) string {
+	if connectorType == "Gitlab" {
+		return "GitLab"
+	}
+	return connectorType
+}
+
 func (api *APIRequest) GetAllProjects(account string) (Projects, error) {
 	resp, err := api.Client.R().
 		SetHeader("x-api-key", api.APIKey).
