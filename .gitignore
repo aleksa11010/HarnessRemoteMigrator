@@ -1,3 +1,5 @@
 config.yaml
 filestore/
 .vscode/
+HarnessInlineToRemote
+config/
