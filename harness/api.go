@@ -196,6 +196,7 @@ func (s *ServiceClass) MoveServiceToRemote(api *APIRequest, c Config) (string, b
 			return "", false, err
 		}
 
+		// WHEN A SERVICE IS ALREADY REMOTE WE DON'T REPORT IT AS ERROR
 		if len(ar.ResponseMessages) == 1 && strings.Contains(ar.ResponseMessages[0].Message, "is already remote") {
 			return "", true, nil
 		}
