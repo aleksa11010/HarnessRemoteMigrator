@@ -23,6 +23,7 @@ type ServiceClass struct {
 	Description interface{} `json:"description"`
 	Tags        ServiceTags `json:"tags"`
 	YAML        string      `json:"yaml"`
+	StoreType   string      `json:"storeType"`
 }
 
 type ServiceTags struct {

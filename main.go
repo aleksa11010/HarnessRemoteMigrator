@@ -36,6 +36,7 @@ func main() {
 	allFlag := flag.Bool("all", false, "Migrate all entities.")
 	pipelinesFlag := flag.Bool("pipelines", false, "Migrate pipelines.")
 	templatesFlag := flag.Bool("templates", false, "Migrate templates.")
+	servicesFlag := flag.Bool("services", false, "Migrate services")
 	filestoreFlag := flag.Bool("filestore", false, "Migrate filestore.")
 	serviceManifests := flag.Bool("service", false, "Migrate service manifests.")
 	forceServiceUpdate := flag.Bool("update-service", false, "Force update remote service manifests")
@@ -48,6 +49,7 @@ func main() {
 	type MigrationScope struct {
 		Pipelines            bool
 		Templates            bool
+		Services             bool
 		FileStore            bool
 		ServiceManifests     bool
 		ForceUpdateManifests bool
@@ -61,6 +63,7 @@ func main() {
 		scope = MigrationScope{
 			Pipelines:            true,
 			Templates:            true,
+			Services:             true,
 			FileStore:            true,
 			ServiceManifests:     true,
 			ForceUpdateManifests: *forceServiceUpdate,
@@ -72,6 +75,7 @@ func main() {
 		scope = MigrationScope{
 			Pipelines:            *pipelinesFlag,
 			Templates:            *templatesFlag,
+			Services:             *servicesFlag,
 			FileStore:            *filestoreFlag,
 			ServiceManifests:     *serviceManifests,
 			ForceUpdateManifests: *forceServiceUpdate,
@@ -107,9 +111,9 @@ func main() {
 		APIKey:  accountConfig.ApiKey,
 	}
 
-	if !scope.Pipelines && !scope.Templates && !scope.FileStore && !scope.Overrides {
+	if !scope.Pipelines && !scope.Templates && !scope.FileStore && !scope.Overrides && !scope.Services {
 		log.Errorf(color.RedString("You need to specify at least one type of entity to migrate!"))
-		log.Errorf(color.RedString("Please use -pipelines, -templates, -filestore or -overrides flags"))
+		log.Errorf(color.RedString("Please use -pipelines, -templates, -services, -filestore or -overrides flags"))
 		log.Errorf(color.RedString("If you want to migrate all entities, use -all flag"))
 		return
 	}
@@ -176,12 +180,14 @@ func main() {
 	pipelineTmpl := `{{ blue "Processing Pipelines: " }} {{ bar . "<" "-" (cycle . "↖" "↗" "↘" "↙" ) "." ">"}} {{percent .}} `
 	serviceTmpl := `{{ blue "Processing Services: " }} {{ bar . "<" "-" (cycle . "↖" "↗" "↘" "↙" ) "." ">"}} {{percent .}} `
 	templateTmpl := `{{ blue "Processing Templates: " }} {{ bar . "<" "-" (cycle . "↖" "↗" "↘" "↙" ) "." ">"}} {{percent .}} `
+	servicesTmpl := `{{ blue "Processing Services: " }} {{ bar . "<" "-" (cycle . "↖" "↗" "↘" "↙" ) "." ">"}} {{percent .}} `
 	fileTmpl := `{{ blue "Downloading files: " }} {{ bar . "<" "-" (cycle . "↖" "↗" "↘" "↙" ) "." ">"}} {{percent .}} `
 	overridesTmpl := `{{ blue "Downloading files: " }} {{ bar . "<" "-" (cycle . "↖" "↗" "↘" "↙" ) "." ">"}} {{percent .}} `
 
 	var pipelines []harness.PipelineContent
 	var templates []harness.Template
-	var failedPipelines, failedTemplates []string
+	var services []*harness.ServiceClass
+	var failedPipelines, failedTemplates, failedServices, alreadyRemoteServices []string
 	for _, project := range projectList {
 		p := project.Project
 		log.Infof(boldCyan.Sprintf("---Processing project %s!---", p.Name))
@@ -264,6 +270,43 @@ func main() {
 			}
 			templates = append(templates, projectTemplates...)
 		}
+
+		// SERVICES MOVE TO REMOTE
+		if scope.Services {
+			log.Infof("Getting services for project %s", project.Project.Name)
+			projectServices, err := api.GetServices(accountConfig.AccountIdentifier, string(p.OrgIdentifier), p.Identifier)
+			if err != nil {
+				log.Errorf(color.RedString("Unable to get services - %s", err))
+				return
+			}
+
+			log.Infof(color.BlueString("Found total of %d services", len(projectServices)))
+			if len(projectServices) > 0 {
+				log.Infof("Moving found services to remote")
+				servicesBar := pb.ProgressBarTemplate(servicesTmpl).Start(len(projectServices))
+
+				for _, service := range projectServices {
+					accountConfig.GitDetails.FilePath = "services/" + string(p.OrgIdentifier) + "/" + p.Identifier + "/" + service.Identifier + ".yaml"
+
+					if service.StoreType == "REMOTE" {
+						log.Infof("Service [%s] is already remote", service.Identifier)
+					} else {
+						_, alreadyRemote, err := service.MoveServiceToRemote(&api, accountConfig)
+						if err != nil {
+							log.Errorf(color.RedString("Unable to move service - %s", service.Name))
+							log.Errorf(color.RedString(err.Error()))
+							failedServices = append(failedServices, service.Name)
+						}
+						if alreadyRemote {
+							alreadyRemoteServices = append(alreadyRemoteServices, service.Name)
+						}
+					}
+					servicesBar.Increment()
+				}
+				servicesBar.Finish()
+			}
+			services = append(services, projectServices...)
+		}
 	}
 	if scope.Pipelines {
 		log.Infof(boldCyan.Sprintf("---Pipelines---"))
@@ -283,6 +326,19 @@ func main() {
 		log.Infof(color.GreenString("Processed total of %d templates", len(templates)))
 		log.Infof(color.GreenString("------"))
 		log.Infof(color.GreenString("Moved templates to remote!"))
+		log.Infof(color.GreenString("------"))
+	}
+	if scope.Services {
+		log.Infof(boldCyan.Sprintf("---Services---"))
+		if len(failedTemplates) > 0 {
+			log.Warnf(color.HiYellowString("These services (count:%d) failed while moving to remote: \n%s", len(failedServices), strings.Join(failedServices, ",\n")))
+		}
+		if len(alreadyRemoteServices) > 0 {
+			log.Warnf(color.HiYellowString("These services (count:%d) already remote: \n%s", len(alreadyRemoteServices), strings.Join(alreadyRemoteServices, ",\n")))
+		}
+		log.Infof(color.GreenString("Processed total of %d services", len(services)))
+		log.Infof(color.GreenString("------"))
+		log.Infof(color.GreenString("Moved services to remote!"))
 		log.Infof(color.GreenString("------"))
 	}
 	if scope.FileStore {

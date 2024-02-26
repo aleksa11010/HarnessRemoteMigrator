@@ -171,6 +171,43 @@ func (t *Template) MoveTemplateToRemote(api *APIRequest, c Config) (string, erro
 	return string(resp.Body()), err
 }
 
+func (s *ServiceClass) MoveServiceToRemote(api *APIRequest, c Config) (string, bool, error) {
+	resp, err := api.Client.R().
+		SetHeader("x-api-key", api.APIKey).
+		SetPathParam("serviceIdentifier", s.Identifier).
+		SetQueryParams(map[string]string{
+			"accountIdentifier": c.AccountIdentifier,
+			"projectIdentifier": s.Project,
+			"orgIdentifier":     s.Org,
+			"connectorRef":      c.GitDetails.ConnectorRef,
+			"repoName":          c.GitDetails.RepoName,
+			"branch":            c.GitDetails.BranchName,
+			"isNewBranch":       "false",
+			"filePath":          c.GitDetails.FilePath,
+			"commitMsg":         c.GitDetails.CommitMessage,
+			"moveConfigType":    "INLINE_TO_REMOTE",
+		}).
+		Post(api.BaseURL + "/gateway/ng/api/servicesV2/move-config/{serviceIdentifier}")
+
+	if resp.StatusCode() != 200 {
+		ar := ApiResponse{}
+		err = json.Unmarshal(resp.Body(), &ar)
+		if err != nil {
+			return "", false, err
+		}
+
+		// WHEN A SERVICE IS ALREADY REMOTE WE DON'T REPORT IT AS ERROR
+		if len(ar.ResponseMessages) == 1 && strings.Contains(ar.ResponseMessages[0].Message, "is already remote") {
+			return "", true, nil
+		}
+
+		errMsg := fmt.Sprintf("CorrelationId: %s, ResponseMessages: %+v", ar.CorrelationID, ar.ResponseMessages)
+		return "", false, fmt.Errorf(errMsg)
+	}
+
+	return string(resp.Body()), false, err
+}
+
 func (api *APIRequest) GetAllOrgs(account string) (Organizations, error) {
 	resp, err := api.Client.R().
 		SetHeader("x-api-key", api.APIKey).
@@ -359,6 +396,7 @@ func (api *APIRequest) GetServices(account, org, project string) ([]*ServiceClas
 		"accountIdentifier": account,
 		"orgIdentifier":     org,
 		"projectIdentifier": project,
+		"limit":             "1000",
 	}
 
 	resp, err := api.Client.R().
