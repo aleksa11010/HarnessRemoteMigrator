@@ -42,6 +42,7 @@ func main() {
 	overridesFlag := flag.Bool("overrides", false, "Migrate service overrides")
 	urlEncoding := flag.Bool("url-encode-string", false, "Encode Paths as URL friendly strings")
 	cgFolderStructure := flag.Bool("alt-path", false, "CG-like folder structure for Git")
+	prod3 := flag.Bool("prod3", false, "User Prod3 base URL for API calls")
 
 	flag.Parse()
 
@@ -54,6 +55,7 @@ func main() {
 		Overrides            bool
 		UrlEncoding          bool
 		CGFolderStructure    bool
+		Prod3                bool
 	}
 	scope := MigrationScope{}
 
@@ -67,6 +69,7 @@ func main() {
 			Overrides:            true,
 			UrlEncoding:          *urlEncoding,
 			CGFolderStructure:    false,
+			Prod3:                false,
 		}
 	} else {
 		scope = MigrationScope{
@@ -78,6 +81,7 @@ func main() {
 			Overrides:            *overridesFlag,
 			UrlEncoding:          *urlEncoding,
 			CGFolderStructure:    *cgFolderStructure,
+			Prod3:                *prod3,
 		}
 	}
 
@@ -101,8 +105,14 @@ func main() {
 		}
 	}
 
+	var baseUrl string
+	if scope.Prod3 {
+		baseUrl = harness.BaseURLProd3
+	} else {
+		baseUrl = harness.BaseURL
+	}
 	api := harness.APIRequest{
-		BaseURL: harness.BaseURL,
+		BaseURL: baseUrl,
 		Client:  resty.New(),
 		APIKey:  accountConfig.ApiKey,
 	}
