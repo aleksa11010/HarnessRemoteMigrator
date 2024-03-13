@@ -387,6 +387,9 @@ func (api *APIRequest) GetConnector(account, org, project, identifier string) (C
 	if err != nil {
 		return ConnectorClass{}, err
 	}
+	if len(connector.Data.Connector.Identifier) == 0 {
+		return ConnectorClass{}, fmt.Errorf("invalid connector")
+	}
 
 	return connector.Data.Connector, nil
 }
