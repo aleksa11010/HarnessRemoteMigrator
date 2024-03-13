@@ -402,6 +402,7 @@ func (api *APIRequest) GetServices(account, org, project string) ([]*ServiceClas
 	resp, err := api.Client.R().
 		SetHeader("x-api-key", api.APIKey).
 		SetHeader("Content-Type", "application/json").
+		SetHeader("Harness-Account", account).
 		SetQueryParams(params).
 		SetPathParam("org", org).
 		SetPathParam("project", project).
