@@ -320,37 +320,13 @@ func main() {
 		}
 	}
 	if scope.Pipelines {
-		log.Infof(boldCyan.Sprintf("---Pipelines---"))
-		if len(failedPipelines) > 0 {
-			log.Warnf(color.HiYellowString("These pipelines (count:%d) failed while moving to remote: \n%s", len(failedPipelines), strings.Join(failedPipelines, ",\n")))
-		}
-		log.Infof(color.GreenString("Processed total of %d pipelines", len(pipelines)))
-		log.Infof(color.GreenString("------"))
-		log.Infof(color.GreenString("Moved pipelines to remote!"))
-		log.Infof(color.GreenString("------"))
+		pipelinesSummary(log, boldCyan, failedPipelines, pipelines)
 	}
 	if scope.Templates {
-		log.Infof(boldCyan.Sprintf("---Templates---"))
-		if len(failedTemplates) > 0 {
-			log.Warnf(color.HiYellowString("These templates (count:%d) failed while moving to remote: \n%s", len(failedTemplates), strings.Join(failedTemplates, ",\n")))
-		}
-		log.Infof(color.GreenString("Processed total of %d templates", len(templates)))
-		log.Infof(color.GreenString("------"))
-		log.Infof(color.GreenString("Moved templates to remote!"))
-		log.Infof(color.GreenString("------"))
+		templatesSummary(log, boldCyan, failedTemplates, templates)
 	}
 	if scope.Services {
-		log.Infof(boldCyan.Sprintf("---Services---"))
-		if len(failedTemplates) > 0 {
-			log.Warnf(color.HiYellowString("These services (count:%d) failed while moving to remote: \n%s", len(failedServices), strings.Join(failedServices, ",\n")))
-		}
-		if len(alreadyRemoteServices) > 0 {
-			log.Warnf(color.HiYellowString("These services (count:%d) already remote: \n%s", len(alreadyRemoteServices), strings.Join(alreadyRemoteServices, ",\n")))
-		}
-		log.Infof(color.GreenString("Processed total of %d services", len(services)))
-		log.Infof(color.GreenString("------"))
-		log.Infof(color.GreenString("Moved services to remote!"))
-		log.Infof(color.GreenString("------"))
+		servicesSummary(log, boldCyan, failedTemplates, failedServices, alreadyRemoteServices, services)
 	}
 	if scope.FileStore {
 		var failedFiles, failedOrgFiles, failedProjectFiles, failedServices []string
@@ -846,4 +822,40 @@ func main() {
 			overridesBar.Finish()
 		}
 	}
+}
+
+func servicesSummary(log *logrus.Logger, boldCyan *color.Color, failedTemplates []string, failedServices []string, alreadyRemoteServices []string, services []*harness.ServiceClass) {
+	log.Infof(boldCyan.Sprintf("---Services---"))
+	if len(failedTemplates) > 0 {
+		log.Warnf(color.HiYellowString("These services (count:%d) failed while moving to remote: \n%s", len(failedServices), strings.Join(failedServices, ",\n")))
+	}
+	if len(alreadyRemoteServices) > 0 {
+		log.Warnf(color.HiYellowString("These services (count:%d) already remote: \n%s", len(alreadyRemoteServices), strings.Join(alreadyRemoteServices, ",\n")))
+	}
+	log.Infof(color.GreenString("Processed total of %d services", len(services)))
+	log.Infof(color.GreenString("------"))
+	log.Infof(color.GreenString("Moved services to remote!"))
+	log.Infof(color.GreenString("------"))
+}
+
+func templatesSummary(log *logrus.Logger, boldCyan *color.Color, failedTemplates []string, templates []harness.Template) {
+	log.Infof(boldCyan.Sprintf("---Templates---"))
+	if len(failedTemplates) > 0 {
+		log.Warnf(color.HiYellowString("These templates (count:%d) failed while moving to remote: \n%s", len(failedTemplates), strings.Join(failedTemplates, ",\n")))
+	}
+	log.Infof(color.GreenString("Processed total of %d templates", len(templates)))
+	log.Infof(color.GreenString("------"))
+	log.Infof(color.GreenString("Moved templates to remote!"))
+	log.Infof(color.GreenString("------"))
+}
+
+func pipelinesSummary(log *logrus.Logger, boldCyan *color.Color, failedPipelines []string, pipelines []harness.PipelineContent) {
+	log.Infof(boldCyan.Sprintf("---Pipelines---"))
+	if len(failedPipelines) > 0 {
+		log.Warnf(color.HiYellowString("These pipelines (count:%d) failed while moving to remote: \n%s", len(failedPipelines), strings.Join(failedPipelines, ",\n")))
+	}
+	log.Infof(color.GreenString("Processed total of %d pipelines", len(pipelines)))
+	log.Infof(color.GreenString("------"))
+	log.Infof(color.GreenString("Moved pipelines to remote!"))
+	log.Infof(color.GreenString("------"))
 }
