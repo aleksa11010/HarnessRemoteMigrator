@@ -44,6 +44,7 @@ func main() {
 	urlEncoding := flag.Bool("url-encode-string", false, "Encode Paths as URL friendly strings")
 	cgFolderStructure := flag.Bool("alt-path", false, "CG-like folder structure for Git")
 	prod3 := flag.Bool("prod3", false, "User Prod3 base URL for API calls")
+	customGitDetailsFilePath := flag.String("custom-remote-path", "", "A custom file path where to save remote manifests.")
 
 	flag.Parse()
 
@@ -222,7 +223,7 @@ func main() {
 						if scope.CGFolderStructure {
 							accountConfig.GitDetails.FilePath = "account/" + string(p.OrgIdentifier) + "/" + p.Identifier + "/pipelines/" + pipeline.Identifier + ".yaml"
 						} else {
-							accountConfig.GitDetails.FilePath = "pipelines/" + string(p.OrgIdentifier) + "/" + p.Identifier + "/" + pipeline.Identifier + ".yaml"
+							accountConfig.GitDetails.FilePath = harness.GetPipelineFilePath(*customGitDetailsFilePath, p, pipeline)
 						}
 					}
 					_, err := pipeline.MovePipelineToRemote(&api, accountConfig, string(p.OrgIdentifier), p.Identifier)
@@ -260,7 +261,7 @@ func main() {
 							accountConfig.GitDetails.FilePath = "account/" + string(p.OrgIdentifier) + "/" + p.Identifier + "/templates/" + template.Identifier + "-" + template.VersionLabel + ".yaml"
 							template.GitDetails = accountConfig.GitDetails
 						} else {
-							accountConfig.GitDetails.FilePath = "templates/" + string(p.OrgIdentifier) + "/" + p.Identifier + "/" + template.Identifier + "-" + template.VersionLabel + ".yaml"
+							accountConfig.GitDetails.FilePath = harness.GetTemplateFilePath(*customGitDetailsFilePath, p, template)
 							template.GitDetails = accountConfig.GitDetails
 						}
 					}
@@ -296,7 +297,7 @@ func main() {
 				servicesBar := pb.ProgressBarTemplate(servicesTmpl).Start(len(projectServices))
 
 				for _, service := range projectServices {
-					accountConfig.GitDetails.FilePath = "services/" + string(p.OrgIdentifier) + "/" + p.Identifier + "/" + service.Identifier + ".yaml"
+					accountConfig.GitDetails.FilePath = harness.GetServiceFilePath(*customGitDetailsFilePath, p, *service)
 
 					if service.StoreType == "REMOTE" {
 						log.Infof("Service [%s] is already remote", service.Identifier)
