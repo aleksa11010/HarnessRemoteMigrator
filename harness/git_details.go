@@ -31,3 +31,11 @@ func GetEnvironmentFilePath(customGitDetailsFilePath string, p Project, env Envi
 		return customGitDetailsFilePath + "/" + env.Identifier + ".yaml"
 	}
 }
+
+func GetInfrastructureFilePath(customGitDetailsFilePath string, p Project, env EnvironmentClass, infraDef Infrastructure) string {
+	if len(customGitDetailsFilePath) == 0 {
+		return "environments/" + string(p.OrgIdentifier) + "/" + p.Identifier + "/" + env.Identifier + "-" + infraDef.Identifier + ".yaml"
+	} else {
+		return customGitDetailsFilePath + "/" + env.Identifier + "-" + infraDef.Identifier + ".yaml"
+	}
+}

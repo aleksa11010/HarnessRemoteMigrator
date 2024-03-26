@@ -240,6 +240,40 @@ func (e *EnvironmentClass) MoveEnvironmentToRemote(api *APIRequest, c Config) er
 	return err
 }
 
+func (i *Infrastructure) MoveInfrastructureToRemote(api *APIRequest, c Config, envId string) error {
+
+	resp, err := api.Client.R().
+		SetHeader("x-api-key", api.APIKey).
+		SetPathParam("infraIdentifier", i.Identifier).
+		SetQueryParams(map[string]string{
+			"accountIdentifier":     c.AccountIdentifier,
+			"projectIdentifier":     i.ProjectIdentifier,
+			"orgIdentifier":         i.OrgIdentifier,
+			"environmentIdentifier": envId,
+			"connectorRef":          c.GitDetails.ConnectorRef,
+			"repoName":              c.GitDetails.RepoName,
+			"branch":                c.GitDetails.BranchName,
+			"isNewBranch":           "false",
+			"isHarnessCodeRepo":     "false",
+			"filePath":              c.GitDetails.FilePath,
+			"commitMsg":             c.GitDetails.CommitMessage,
+			"moveConfigType":        "INLINE_TO_REMOTE",
+		}).
+		Post(api.BaseURL + "/gateway/ng/api/infrastructures/move-config/{infraIdentifier}")
+
+	if resp.StatusCode() != 200 {
+		ar := ApiResponse{}
+		err = json.Unmarshal(resp.Body(), &ar)
+		if err != nil {
+			return err
+		}
+		errMsg := fmt.Sprintf("CorrelationId: %s, ResponseMessages: %+v", ar.CorrelationID, ar.ResponseMessages)
+		return fmt.Errorf(errMsg)
+	}
+
+	return err
+}
+
 func (api *APIRequest) GetAllOrgs(account string) (Organizations, error) {
 	resp, err := api.Client.R().
 		SetHeader("x-api-key", api.APIKey).
@@ -519,6 +553,39 @@ func (api *APIRequest) GetEnvironments(account, org, project string) ([]*Environ
 	}
 
 	return envList, nil
+}
+
+func (api *APIRequest) GetInfrastructures(account, org, project, envId string) ([]*Infrastructure, error) {
+
+	params := map[string]string{
+		"accountIdentifier":     account,
+		"orgIdentifier":         org,
+		"projectIdentifier":     project,
+		"environmentIdentifier": envId,
+		"limit":                 "1000",
+	}
+
+	resp, err := api.Client.R().
+		SetHeader("x-api-key", api.APIKey).
+		SetHeader("Content-Type", "application/json").
+		SetQueryParams(params).
+		Get(api.BaseURL + "/ng/api/infrastructures")
+	if err != nil {
+		return []*Infrastructure{}, err
+	}
+
+	result := InfraDefResult{}
+	err = json.Unmarshal(resp.Body(), &result)
+	if err != nil {
+		return []*Infrastructure{}, err
+	}
+
+	infraList := []*Infrastructure{}
+	for _, content := range result.Data.Content {
+		infraList = append(infraList, &content.Infrastructure)
+	}
+
+	return infraList, nil
 }
 
 func (api *APIRequest) UpdateEnvironment(env EnvironmentRequest, account string) error {

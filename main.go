@@ -38,6 +38,7 @@ func main() {
 	templatesFlag := flag.Bool("templates", false, "Migrate templates.")
 	servicesFlag := flag.Bool("services", false, "Migrate services")
 	envFlag := flag.Bool("environments", false, "Migrate environments")
+	infraDefFlag := flag.Bool("infraDef", false, "Migrate infrastructure definition")
 	filestoreFlag := flag.Bool("filestore", false, "Migrate filestore.")
 	serviceManifests := flag.Bool("service", false, "Migrate service manifests.")
 	forceServiceUpdate := flag.Bool("update-service", false, "Force update remote service manifests")
@@ -54,6 +55,7 @@ func main() {
 		Templates            bool
 		Services             bool
 		Environments         bool
+		InfraDef             bool
 		FileStore            bool
 		ServiceManifests     bool
 		ForceUpdateManifests bool
@@ -70,6 +72,7 @@ func main() {
 			Templates:            true,
 			Services:             true,
 			Environments:         true,
+			InfraDef:             true,
 			FileStore:            true,
 			ServiceManifests:     true,
 			ForceUpdateManifests: *forceServiceUpdate,
@@ -84,6 +87,7 @@ func main() {
 			Templates:            *templatesFlag,
 			Services:             *servicesFlag,
 			Environments:         *envFlag,
+			InfraDef:             *infraDefFlag,
 			FileStore:            *filestoreFlag,
 			ServiceManifests:     *serviceManifests,
 			ForceUpdateManifests: *forceServiceUpdate,
@@ -126,7 +130,7 @@ func main() {
 		APIKey:  accountConfig.ApiKey,
 	}
 
-	if !scope.Pipelines && !scope.Templates && !scope.FileStore && !scope.Overrides && !scope.Services && !scope.Environments {
+	if !scope.Pipelines && !scope.Templates && !scope.FileStore && !scope.Overrides && !scope.Services && !scope.Environments && !scope.InfraDef {
 		log.Errorf(color.RedString("You need to specify at least one type of entity to migrate!"))
 		log.Errorf(color.RedString("Please use -pipelines, -templates, -services, -environments, -filestore or -overrides flags"))
 		log.Errorf(color.RedString("If you want to migrate all entities, use -all flag"))
@@ -196,7 +200,7 @@ func main() {
 	serviceTmpl := `{{ blue "Processing Services: " }} {{ bar . "<" "-" (cycle . "↖" "↗" "↘" "↙" ) "." ">"}} {{percent .}} `
 	templateTmpl := `{{ blue "Processing Templates: " }} {{ bar . "<" "-" (cycle . "↖" "↗" "↘" "↙" ) "." ">"}} {{percent .}} `
 	servicesTmpl := `{{ blue "Processing Services: " }} {{ bar . "<" "-" (cycle . "↖" "↗" "↘" "↙" ) "." ">"}} {{percent .}} `
-	envTmpl := `{{ blue "Processing Services: " }} {{ bar . "<" "-" (cycle . "↖" "↗" "↘" "↙" ) "." ">"}} {{percent .}} `
+	envTmpl := `{{ blue "Processing Environments: " }} {{ bar . "<" "-" (cycle . "↖" "↗" "↘" "↙" ) "." ">"}} {{percent .}} `
 	fileTmpl := `{{ blue "Downloading files: " }} {{ bar . "<" "-" (cycle . "↖" "↗" "↘" "↙" ) "." ">"}} {{percent .}} `
 	overridesTmpl := `{{ blue "Downloading files: " }} {{ bar . "<" "-" (cycle . "↖" "↗" "↘" "↙" ) "." ">"}} {{percent .}} `
 
@@ -330,7 +334,7 @@ func main() {
 			log.Infof("Getting environments for project %s", project.Project.Name)
 			projectEnvironments, err := api.GetEnvironments(accountConfig.AccountIdentifier, string(p.OrgIdentifier), p.Identifier)
 			if err != nil {
-				log.Errorf(color.RedString("Unable to get services - %s", err))
+				log.Errorf(color.RedString("Unable to get environments - %s", err))
 				return
 			}
 
@@ -357,6 +361,14 @@ func main() {
 				envBar.Finish()
 			}
 			environments = append(environments, projectEnvironments...)
+		}
+
+		// INFRA-DEF MOVE TO REMOTE
+		if scope.InfraDef {
+			err := processInfraDefScope(log, api, *customGitDetailsFilePath, accountConfig, project, p)
+			if err != nil {
+				log.Errorf(color.RedString("Unable to inline-to-remote infrastructure - %s", err))
+			}
 		}
 	}
 	if scope.Pipelines {
@@ -867,6 +879,50 @@ func main() {
 	}
 }
 
+func processInfraDefScope(log *logrus.Logger, api harness.APIRequest, customGitDetailsFilePath string, accountConfig harness.Config, project harness.ProjectsContent, p harness.Project) error {
+
+	projectEnvironments, err := api.GetEnvironments(accountConfig.AccountIdentifier, string(p.OrgIdentifier), p.Identifier)
+	if err != nil {
+		log.Errorf(color.RedString("Unable to get environments - %s", err))
+		return err
+	}
+
+	if len(projectEnvironments) > 0 {
+		log.Infof("Moving infrastructures of %d environments to remote", len(projectEnvironments))
+
+		pbTemplate := `{{ blue "Processing: " }} {{ bar . "<" "-" (cycle . "↖" "↗" "↘" "↙" ) "." ">"}} {{percent .}} `
+		pbBar := pb.ProgressBarTemplate(pbTemplate).Start(len(projectEnvironments))
+
+		for _, environment := range projectEnvironments {
+			// ONLY TAKE CARE OF INFRA-DEF WHEN ENV IS REMOTE
+			if environment.StoreType == "REMOTE" {
+				infras, err := api.GetInfrastructures(accountConfig.AccountIdentifier, string(p.OrgIdentifier), p.Identifier, environment.Identifier)
+				if err != nil {
+					log.Errorf(color.RedString("Unable to list infrastructure of environment - %s [%s]", environment.Identifier, err))
+					continue
+				}
+
+				if len(infras) > 0 {
+					for _, infraDef := range infras {
+						if infraDef.StoreType != "REMOTE" {
+							accountConfig.GitDetails.FilePath = harness.GetInfrastructureFilePath(customGitDetailsFilePath, p, *environment, *infraDef)
+
+							err = infraDef.MoveInfrastructureToRemote(&api, accountConfig, environment.Identifier)
+							if err != nil {
+								log.Errorf(color.RedString("Unable to move infrastruture [%s] from environment [%s] - %s", infraDef.Name, environment.Name, err))
+							}
+						}
+					}
+				}
+			}
+			pbBar.Increment()
+		}
+		pbBar.Finish()
+	}
+
+	return nil
+}
+
 func servicesSummary(log *logrus.Logger, boldCyan *color.Color, failedTemplates []string, failedServices []string, alreadyRemoteServices []string, services []*harness.ServiceClass) {
 	log.Infof(boldCyan.Sprintf("---Services---"))
 	if len(failedTemplates) > 0 {
@@ -908,7 +964,7 @@ func environmentsSummary(log *logrus.Logger, boldCyan *color.Color, failedEnvs [
 	if len(failedEnvs) > 0 {
 		log.Warnf(color.HiYellowString("These environments (count:%d) failed while moving to remote: \n%s", len(failedEnvs), strings.Join(failedEnvs, ",\n")))
 	}
-	log.Infof(color.GreenString("Processed total of %d pipelines", len(envs)))
+	log.Infof(color.GreenString("Processed total of %d environments", len(envs)))
 	log.Infof(color.GreenString("------"))
 	log.Infof(color.GreenString("Moved environments to remote!"))
 	log.Infof(color.GreenString("------"))
