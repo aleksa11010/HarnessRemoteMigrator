@@ -208,6 +208,38 @@ func (s *ServiceClass) MoveServiceToRemote(api *APIRequest, c Config) (string, b
 	return string(resp.Body()), false, err
 }
 
+func (e *EnvironmentClass) MoveEnvironmentToRemote(api *APIRequest, c Config) error {
+	resp, err := api.Client.R().
+		SetHeader("x-api-key", api.APIKey).
+		SetPathParam("environmentIdentifier", e.Identifier).
+		SetQueryParams(map[string]string{
+			"accountIdentifier": c.AccountIdentifier,
+			"projectIdentifier": e.ProjectIdentifier,
+			"orgIdentifier":     e.OrgIdentifier,
+			"connectorRef":      c.GitDetails.ConnectorRef,
+			"repoName":          c.GitDetails.RepoName,
+			"branch":            c.GitDetails.BranchName,
+			"isNewBranch":       "false",
+			"isHarnessCodeRepo": "false",
+			"filePath":          c.GitDetails.FilePath,
+			"commitMsg":         c.GitDetails.CommitMessage,
+			"moveConfigType":    "INLINE_TO_REMOTE",
+		}).
+		Post(api.BaseURL + "/gateway/ng/api/environmentsV2/move-config/{environmentIdentifier}")
+
+	if resp.StatusCode() != 200 {
+		ar := ApiResponse{}
+		err = json.Unmarshal(resp.Body(), &ar)
+		if err != nil {
+			return err
+		}
+		errMsg := fmt.Sprintf("CorrelationId: %s, ResponseMessages: %+v", ar.CorrelationID, ar.ResponseMessages)
+		return fmt.Errorf(errMsg)
+	}
+
+	return err
+}
+
 func (api *APIRequest) GetAllOrgs(account string) (Organizations, error) {
 	resp, err := api.Client.R().
 		SetHeader("x-api-key", api.APIKey).

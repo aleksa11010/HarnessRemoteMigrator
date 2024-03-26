@@ -23,3 +23,11 @@ func GetServiceFilePath(customGitDetailsFilePath string, p Project, service Serv
 		return customGitDetailsFilePath + "/" + service.Identifier + ".yaml"
 	}
 }
+
+func GetEnvironmentFilePath(customGitDetailsFilePath string, p Project, env EnvironmentClass) string {
+	if len(customGitDetailsFilePath) == 0 {
+		return "environments/" + string(p.OrgIdentifier) + "/" + p.Identifier + "/" + env.Identifier + ".yaml"
+	} else {
+		return customGitDetailsFilePath + "/" + env.Identifier + ".yaml"
+	}
+}

@@ -37,6 +37,7 @@ func main() {
 	pipelinesFlag := flag.Bool("pipelines", false, "Migrate pipelines.")
 	templatesFlag := flag.Bool("templates", false, "Migrate templates.")
 	servicesFlag := flag.Bool("services", false, "Migrate services")
+	envFlag := flag.Bool("environments", false, "Migrate environments")
 	filestoreFlag := flag.Bool("filestore", false, "Migrate filestore.")
 	serviceManifests := flag.Bool("service", false, "Migrate service manifests.")
 	forceServiceUpdate := flag.Bool("update-service", false, "Force update remote service manifests")
@@ -52,6 +53,7 @@ func main() {
 		Pipelines            bool
 		Templates            bool
 		Services             bool
+		Environments         bool
 		FileStore            bool
 		ServiceManifests     bool
 		ForceUpdateManifests bool
@@ -67,6 +69,7 @@ func main() {
 			Pipelines:            true,
 			Templates:            true,
 			Services:             true,
+			Environments:         true,
 			FileStore:            true,
 			ServiceManifests:     true,
 			ForceUpdateManifests: *forceServiceUpdate,
@@ -80,6 +83,7 @@ func main() {
 			Pipelines:            *pipelinesFlag,
 			Templates:            *templatesFlag,
 			Services:             *servicesFlag,
+			Environments:         *envFlag,
 			FileStore:            *filestoreFlag,
 			ServiceManifests:     *serviceManifests,
 			ForceUpdateManifests: *forceServiceUpdate,
@@ -122,9 +126,9 @@ func main() {
 		APIKey:  accountConfig.ApiKey,
 	}
 
-	if !scope.Pipelines && !scope.Templates && !scope.FileStore && !scope.Overrides && !scope.Services {
+	if !scope.Pipelines && !scope.Templates && !scope.FileStore && !scope.Overrides && !scope.Services && !scope.Environments {
 		log.Errorf(color.RedString("You need to specify at least one type of entity to migrate!"))
-		log.Errorf(color.RedString("Please use -pipelines, -templates, -services, -filestore or -overrides flags"))
+		log.Errorf(color.RedString("Please use -pipelines, -templates, -services, -environments, -filestore or -overrides flags"))
 		log.Errorf(color.RedString("If you want to migrate all entities, use -all flag"))
 		return
 	}
@@ -192,13 +196,15 @@ func main() {
 	serviceTmpl := `{{ blue "Processing Services: " }} {{ bar . "<" "-" (cycle . "↖" "↗" "↘" "↙" ) "." ">"}} {{percent .}} `
 	templateTmpl := `{{ blue "Processing Templates: " }} {{ bar . "<" "-" (cycle . "↖" "↗" "↘" "↙" ) "." ">"}} {{percent .}} `
 	servicesTmpl := `{{ blue "Processing Services: " }} {{ bar . "<" "-" (cycle . "↖" "↗" "↘" "↙" ) "." ">"}} {{percent .}} `
+	envTmpl := `{{ blue "Processing Services: " }} {{ bar . "<" "-" (cycle . "↖" "↗" "↘" "↙" ) "." ">"}} {{percent .}} `
 	fileTmpl := `{{ blue "Downloading files: " }} {{ bar . "<" "-" (cycle . "↖" "↗" "↘" "↙" ) "." ">"}} {{percent .}} `
 	overridesTmpl := `{{ blue "Downloading files: " }} {{ bar . "<" "-" (cycle . "↖" "↗" "↘" "↙" ) "." ">"}} {{percent .}} `
 
 	var pipelines []harness.PipelineContent
 	var templates []harness.Template
 	var services []*harness.ServiceClass
-	var failedPipelines, failedTemplates, failedServices, alreadyRemoteServices []string
+	var environments []*harness.EnvironmentClass
+	var failedPipelines, failedTemplates, failedServices, failedEnvs, alreadyRemoteServices []string
 	for _, project := range projectList {
 		p := project.Project
 		log.Infof(boldCyan.Sprintf("---Processing project %s!---", p.Name))
@@ -266,7 +272,7 @@ func main() {
 						}
 					}
 					if template.StoreType == "REMOTE" {
-						log.Infof("Template [%s] Version [%s} is already remote!", template.Identifier, template.VersionLabel)
+						log.Infof("Template [%s] Version [%s] is already remote!", template.Identifier, template.VersionLabel)
 					} else {
 						_, err := template.MoveTemplateToRemote(&api, accountConfig)
 						if err != nil {
@@ -318,6 +324,40 @@ func main() {
 			}
 			services = append(services, projectServices...)
 		}
+
+		// ENVIRONMENTS MOVE TO REMOTE
+		if scope.Environments {
+			log.Infof("Getting environments for project %s", project.Project.Name)
+			projectEnvironments, err := api.GetEnvironments(accountConfig.AccountIdentifier, string(p.OrgIdentifier), p.Identifier)
+			if err != nil {
+				log.Errorf(color.RedString("Unable to get services - %s", err))
+				return
+			}
+
+			log.Infof(color.BlueString("Found total of %d environments", len(projectEnvironments)))
+			if len(projectEnvironments) > 0 {
+				log.Infof("Moving found environments to remote")
+				envBar := pb.ProgressBarTemplate(envTmpl).Start(len(projectEnvironments))
+
+				for _, environment := range projectEnvironments {
+					accountConfig.GitDetails.FilePath = harness.GetEnvironmentFilePath(*customGitDetailsFilePath, p, *environment)
+
+					if environment.StoreType == "REMOTE" {
+						log.Infof("Environment [%s] is already remote", environment.Identifier)
+					} else {
+						err = environment.MoveEnvironmentToRemote(&api, accountConfig)
+						if err != nil {
+							log.Errorf(color.RedString("Unable to move environment - %s", environment.Name))
+							log.Errorf(color.RedString(err.Error()))
+							failedEnvs = append(failedEnvs, environment.Name)
+						}
+					}
+					envBar.Increment()
+				}
+				envBar.Finish()
+			}
+			environments = append(environments, projectEnvironments...)
+		}
 	}
 	if scope.Pipelines {
 		pipelinesSummary(log, boldCyan, failedPipelines, pipelines)
@@ -327,6 +367,9 @@ func main() {
 	}
 	if scope.Services {
 		servicesSummary(log, boldCyan, failedTemplates, failedServices, alreadyRemoteServices, services)
+	}
+	if scope.Environments {
+		environmentsSummary(log, boldCyan, failedEnvs, environments)
 	}
 	if scope.FileStore {
 		var failedFiles, failedOrgFiles, failedProjectFiles, failedServices []string
@@ -857,5 +900,16 @@ func pipelinesSummary(log *logrus.Logger, boldCyan *color.Color, failedPipelines
 	log.Infof(color.GreenString("Processed total of %d pipelines", len(pipelines)))
 	log.Infof(color.GreenString("------"))
 	log.Infof(color.GreenString("Moved pipelines to remote!"))
+	log.Infof(color.GreenString("------"))
+}
+
+func environmentsSummary(log *logrus.Logger, boldCyan *color.Color, failedEnvs []string, envs []*harness.EnvironmentClass) {
+	log.Infof(boldCyan.Sprintf("---Environments---"))
+	if len(failedEnvs) > 0 {
+		log.Warnf(color.HiYellowString("These environments (count:%d) failed while moving to remote: \n%s", len(failedEnvs), strings.Join(failedEnvs, ",\n")))
+	}
+	log.Infof(color.GreenString("Processed total of %d pipelines", len(envs)))
+	log.Infof(color.GreenString("------"))
+	log.Infof(color.GreenString("Moved environments to remote!"))
 	log.Infof(color.GreenString("------"))
 }
