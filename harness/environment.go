@@ -45,6 +45,7 @@ type EnvironmentClass struct {
 	Deleted           bool            `json:"deleted"`
 	Tags              EnvironmentTags `json:"tags"`
 	YAML              string          `json:"yaml"`
+	StoreType         string          `json:"storeType"`
 }
 
 type EnvironmentTags struct {
