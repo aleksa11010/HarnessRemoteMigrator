@@ -1,11 +1,11 @@
-
-
 # Harness Migration Utility: Inline to Remote Entities
 
 ## Introduction
+
 The Harness Migration Utility is a tool designed to facilitate the migration of inline entities to remote entities. This document provides a comprehensive guide on the prerequisites, usage, and supported entities for the utility.
 
 ## Prerequisites
+
 Before running this utility tool, ensure that you have a Git connector on your account with the appropriate permissions.
 
 If you are providing the identifier of your Git connector, prefix it with 'account' or 'org' if the connector is not located under the project. 
@@ -13,10 +13,13 @@ If you are providing the identifier of your Git connector, prefix it with 'accou
 ### ***For migrating multiple projects, use an account or org level connector that has access to all projects.***
 
 ## Usage
+
 The utility can be run in two ways: by providing a Configuration YAML file or by providing CLI arguments.
 
 ### Config File
+
 The configuration file contains the following information:
+
 ```yaml
 accountIdentifier: AccountIdentifier # Your Account ID
 apiKey: pat.xxx.yyy.zzz # Your PAT/SAT token
@@ -67,6 +70,19 @@ You can run the migration utility using the following commands:
 ```
 ./harness-remote-migrator -config /path/to/config.yaml -templates
 ```
+
+**Run ONLY for environments:**
+
+```sh
+./harness-remote-migrator -config /path/to/config.yaml -environments
+```
+
+**Run ONLY for infrastructure definition:**
+
+```sh
+./harness-remote-migrator -config /path/to/config.yaml -infraDef
+```
+
 **Run ONLY for file store:**
 ```
 ./harness-remote-migrator -config /path/to/config.yaml -filestore
@@ -81,7 +97,7 @@ You can run the migration utility using the following commands:
 ```
 **You can use any combination of above commands.**
 
-## Utility Commands ##
+## Utility Commands
 
 **URL Encoding for strings**
 - You can use the flag `url-encode-string` to enable the URL friendly encoding of remote paths
@@ -89,14 +105,22 @@ You can run the migration utility using the following commands:
 **CG Like Folder structure**
 - You can use the flag `alt-path` to enable the CG-like folder structure in Git. 
 
+**Custom Remote Path**
+
+- You can use the flag `custom-remote-path` to point where to save YAMLs inside the remote repository.
+- When using this argument you should avoid running multiple migrations at same time or all the files will be stored at the same path.
+
 ### CLI Arguments
+
 ***To be added***
 
 ## File Store Migration
+
 The utility migrates File Store files to a remote Git repository by creating local copies from your Harness account and initializing a Git repo.
 
 The files are structured in following order Account, Org, and Project levels. 
 Example structure:
+
 ```
 .
 ├── account
@@ -108,12 +132,17 @@ Example structure:
             ├── Bar
             └── Foo
 ```
+
 After downloading and structuring the files, they are committed and pushed to repo based on your configuration.
 
 This folder structure will be used to reference the files in your Services/Environments.
 
 ## Supported Entities
+
 1. Pipelines
-2. Templates
-3. File Store
-4. Service Manifests/Values
+1. Templates
+1. Services
+1. Environments
+1. Infrastructure Definition
+1. File Store
+1. Service Manifests/Values
