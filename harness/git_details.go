@@ -1,39 +1,58 @@
 package harness
 
-func GetPipelineFilePath(customGitDetailsFilePath string, p Project, pipeline PipelineContent) string {
+import (
+	"fmt"
+)
+
+func GetPipelineFilePath(gitX bool, customGitDetailsFilePath string, p Project, pipeline PipelineContent) string {
 	if len(customGitDetailsFilePath) == 0 {
+		if gitX {
+			return fmt.Sprintf(".harness/orgs/%s/projects/%s/pipelines/%s.yaml", string(p.OrgIdentifier), p.Identifier, pipeline.Identifier)
+		}
 		return "pipelines/" + string(p.OrgIdentifier) + "/" + p.Identifier + "/" + pipeline.Identifier + ".yaml"
 	} else {
 		return customGitDetailsFilePath + "/" + pipeline.Identifier + ".yaml"
 	}
 }
 
-func GetTemplateFilePath(customGitDetailsFilePath string, p Project, template Template) string {
+func GetTemplateFilePath(gitX bool, customGitDetailsFilePath string, p Project, template Template) string {
 	if len(customGitDetailsFilePath) == 0 {
+		if gitX {
+			return fmt.Sprintf(".harness/orgs/%s/projects/%s/templates/%s/%s.yaml", string(p.OrgIdentifier), p.Identifier, template.Identifier, template.VersionLabel)
+		}
 		return "templates/" + string(p.OrgIdentifier) + "/" + p.Identifier + "/" + template.Identifier + "-" + template.VersionLabel + ".yaml"
 	} else {
 		return customGitDetailsFilePath + "/" + template.Identifier + "-" + template.VersionLabel + ".yaml"
 	}
 }
 
-func GetServiceFilePath(customGitDetailsFilePath string, p Project, service ServiceClass) string {
+func GetServiceFilePath(gitX bool, customGitDetailsFilePath string, p Project, service ServiceClass) string {
 	if len(customGitDetailsFilePath) == 0 {
+		if gitX {
+			return fmt.Sprintf(".harness/orgs/%s/projects/%s/services/%s.yaml", string(p.OrgIdentifier), p.Identifier, service.Identifier)
+		}
 		return "services/" + string(p.OrgIdentifier) + "/" + p.Identifier + "/" + service.Identifier + ".yaml"
 	} else {
 		return customGitDetailsFilePath + "/" + service.Identifier + ".yaml"
 	}
 }
 
-func GetEnvironmentFilePath(customGitDetailsFilePath string, p Project, env EnvironmentClass) string {
+func GetEnvironmentFilePath(gitX bool, customGitDetailsFilePath string, p Project, env EnvironmentClass) string {
 	if len(customGitDetailsFilePath) == 0 {
+		if gitX {
+			return fmt.Sprintf(".harness/orgs/%s/projects/%s/environments/%s.yaml", string(p.OrgIdentifier), p.Identifier, env.Identifier)
+		}
 		return "environments/" + string(p.OrgIdentifier) + "/" + p.Identifier + "/" + env.Identifier + ".yaml"
 	} else {
 		return customGitDetailsFilePath + "/" + env.Identifier + ".yaml"
 	}
 }
 
-func GetInfrastructureFilePath(customGitDetailsFilePath string, p Project, env EnvironmentClass, infraDef Infrastructure) string {
+func GetInfrastructureFilePath(gitX bool, customGitDetailsFilePath string, p Project, env EnvironmentClass, infraDef Infrastructure) string {
 	if len(customGitDetailsFilePath) == 0 {
+		if gitX {
+			return fmt.Sprintf(".harness/orgs/%s/projects/%s/environments/%s/infrastructures/%s.yaml", string(p.OrgIdentifier), p.Identifier, env.Identifier, infraDef.Identifier)
+		}
 		return "environments/" + string(p.OrgIdentifier) + "/" + p.Identifier + "/" + env.Identifier + "-" + infraDef.Identifier + ".yaml"
 	} else {
 		return customGitDetailsFilePath + "/" + env.Identifier + "-" + infraDef.Identifier + ".yaml"

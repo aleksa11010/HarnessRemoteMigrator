@@ -47,6 +47,7 @@ func main() {
 	cgFolderStructure := flag.Bool("alt-path", false, "CG-like folder structure for Git")
 	prod3 := flag.Bool("prod3", false, "User Prod3 base URL for API calls")
 	customGitDetailsFilePath := flag.String("custom-remote-path", "", "A custom file path where to save remote manifests.")
+	gitX := flag.Bool("gitx", false, "Migrate entity following the Git Experience definitions")
 
 	flag.Parse()
 
@@ -63,6 +64,7 @@ func main() {
 		UrlEncoding          bool
 		CGFolderStructure    bool
 		Prod3                bool
+		GitX                 bool
 	}
 	scope := MigrationScope{}
 
@@ -80,6 +82,7 @@ func main() {
 			UrlEncoding:          *urlEncoding,
 			CGFolderStructure:    false,
 			Prod3:                false,
+			GitX:                 *gitX,
 		}
 	} else {
 		scope = MigrationScope{
@@ -95,6 +98,7 @@ func main() {
 			UrlEncoding:          *urlEncoding,
 			CGFolderStructure:    *cgFolderStructure,
 			Prod3:                *prod3,
+			GitX:                 *gitX,
 		}
 	}
 
@@ -233,7 +237,7 @@ func main() {
 						if scope.CGFolderStructure {
 							accountConfig.GitDetails.FilePath = "account/" + string(p.OrgIdentifier) + "/" + p.Identifier + "/pipelines/" + pipeline.Identifier + ".yaml"
 						} else {
-							accountConfig.GitDetails.FilePath = harness.GetPipelineFilePath(*customGitDetailsFilePath, p, pipeline)
+							accountConfig.GitDetails.FilePath = harness.GetPipelineFilePath(scope.GitX, *customGitDetailsFilePath, p, pipeline)
 						}
 					}
 					_, err := pipeline.MovePipelineToRemote(&api, accountConfig, string(p.OrgIdentifier), p.Identifier)
@@ -271,7 +275,7 @@ func main() {
 							accountConfig.GitDetails.FilePath = "account/" + string(p.OrgIdentifier) + "/" + p.Identifier + "/templates/" + template.Identifier + "-" + template.VersionLabel + ".yaml"
 							template.GitDetails = accountConfig.GitDetails
 						} else {
-							accountConfig.GitDetails.FilePath = harness.GetTemplateFilePath(*customGitDetailsFilePath, p, template)
+							accountConfig.GitDetails.FilePath = harness.GetTemplateFilePath(scope.GitX, *customGitDetailsFilePath, p, template)
 							template.GitDetails = accountConfig.GitDetails
 						}
 					}
@@ -307,7 +311,7 @@ func main() {
 				servicesBar := pb.ProgressBarTemplate(servicesTmpl).Start(len(projectServices))
 
 				for _, service := range projectServices {
-					accountConfig.GitDetails.FilePath = harness.GetServiceFilePath(*customGitDetailsFilePath, p, *service)
+					accountConfig.GitDetails.FilePath = harness.GetServiceFilePath(scope.GitX, *customGitDetailsFilePath, p, *service)
 
 					if service.StoreType == "REMOTE" {
 						log.Infof("Service [%s] is already remote", service.Identifier)
@@ -344,7 +348,7 @@ func main() {
 				envBar := pb.ProgressBarTemplate(envTmpl).Start(len(projectEnvironments))
 
 				for _, environment := range projectEnvironments {
-					accountConfig.GitDetails.FilePath = harness.GetEnvironmentFilePath(*customGitDetailsFilePath, p, *environment)
+					accountConfig.GitDetails.FilePath = harness.GetEnvironmentFilePath(scope.GitX, *customGitDetailsFilePath, p, *environment)
 
 					if environment.StoreType == "REMOTE" {
 						log.Infof("Environment [%s] is already remote", environment.Identifier)
@@ -365,7 +369,7 @@ func main() {
 
 		// INFRA-DEF MOVE TO REMOTE
 		if scope.InfraDef {
-			err := processInfraDefScope(log, api, *customGitDetailsFilePath, accountConfig, project, p)
+			err := processInfraDefScope(log, api, *customGitDetailsFilePath, accountConfig, p, scope.GitX)
 			if err != nil {
 				log.Errorf(color.RedString("Unable to inline-to-remote infrastructure - %s", err))
 			}
@@ -879,7 +883,7 @@ func main() {
 	}
 }
 
-func processInfraDefScope(log *logrus.Logger, api harness.APIRequest, customGitDetailsFilePath string, accountConfig harness.Config, project harness.ProjectsContent, p harness.Project) error {
+func processInfraDefScope(log *logrus.Logger, api harness.APIRequest, customGitDetailsFilePath string, accountConfig harness.Config, p harness.Project, gitX bool) error {
 
 	projectEnvironments, err := api.GetEnvironments(accountConfig.AccountIdentifier, string(p.OrgIdentifier), p.Identifier)
 	if err != nil {
@@ -905,7 +909,7 @@ func processInfraDefScope(log *logrus.Logger, api harness.APIRequest, customGitD
 				if len(infras) > 0 {
 					for _, infraDef := range infras {
 						if infraDef.StoreType != "REMOTE" {
-							accountConfig.GitDetails.FilePath = harness.GetInfrastructureFilePath(customGitDetailsFilePath, p, *environment, *infraDef)
+							accountConfig.GitDetails.FilePath = harness.GetInfrastructureFilePath(gitX, customGitDetailsFilePath, p, *environment, *infraDef)
 
 							err = infraDef.MoveInfrastructureToRemote(&api, accountConfig, environment.Identifier)
 							if err != nil {
