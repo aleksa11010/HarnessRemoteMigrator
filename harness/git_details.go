@@ -58,3 +58,14 @@ func GetInfrastructureFilePath(gitX bool, customGitDetailsFilePath string, p Pro
 		return customGitDetailsFilePath + "/" + env.Identifier + "-" + infraDef.Identifier + ".yaml"
 	}
 }
+
+func GetInputsetFilePath(gitX bool, customGitDetailsFilePath string, p Project, is *InputsetContent) string {
+	if len(customGitDetailsFilePath) == 0 {
+		if gitX {
+			return fmt.Sprintf(".harness/orgs/%s/projects/%s/pipelines/%s/input_sets/%s.yaml", string(p.OrgIdentifier), p.Identifier, is.PipelineIdentifier, is.Identifier)
+		}
+		return "input_sets/" + string(p.OrgIdentifier) + "/" + p.Identifier + "/" + is.PipelineIdentifier + "/" + is.Identifier + ".yaml"
+	} else {
+		return customGitDetailsFilePath + "/" + is.PipelineIdentifier + "/" + is.Identifier + ".yaml"
+	}
+}

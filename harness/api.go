@@ -78,6 +78,33 @@ func (api *APIRequest) GetAllPipelines(account, org, project string) (Pipelines,
 	return pipelines, nil
 }
 
+func (api *APIRequest) GetInputsets(account, org, project, pipeline string) ([]*InputsetContent, error) {
+
+	resp, err := api.Client.R().
+		SetHeader("x-api-key", api.APIKey).
+		SetHeader("Content-Type", "application/json").
+		SetQueryParams(map[string]string{
+			"routingId":          account,
+			"accountIdentifier":  account,
+			"orgIdentifier":      org,
+			"projectIdentifier":  project,
+			"pipelineIdentifier": pipeline,
+			"size":               "1000",
+		}).
+		Get(api.BaseURL + "/gateway/pipeline/api/inputSets")
+	if err != nil {
+		return nil, err
+	}
+
+	result := ListInputsetResponse{}
+	err = json.Unmarshal(resp.Body(), &result)
+	if err != nil {
+		return nil, err
+	}
+
+	return result.Data.Content, nil
+}
+
 func (api *APIRequest) GetAllTemplates(account, org, project string) (Templates, error) {
 	resp, err := api.Client.R().
 		SetHeader("x-api-key", api.APIKey).
@@ -226,6 +253,41 @@ func (e *EnvironmentClass) MoveEnvironmentToRemote(api *APIRequest, c Config) er
 			"moveConfigType":    "INLINE_TO_REMOTE",
 		}).
 		Post(api.BaseURL + "/gateway/ng/api/environmentsV2/move-config/{environmentIdentifier}")
+
+	if resp.StatusCode() != 200 {
+		ar := ApiResponse{}
+		err = json.Unmarshal(resp.Body(), &ar)
+		if err != nil {
+			return err
+		}
+		errMsg := fmt.Sprintf("CorrelationId: %s, ResponseMessages: %+v", ar.CorrelationID, ar.ResponseMessages)
+		return fmt.Errorf(errMsg)
+	}
+
+	return err
+}
+
+func (is *InputsetContent) MoveInputsetToRemote(api *APIRequest, c Config, project, org string) error {
+	resp, err := api.Client.R().
+		SetHeader("x-api-key", api.APIKey).
+		SetPathParam("identifier", is.Identifier).
+		SetHeader("Content-Type", "application/json").
+		SetQueryParams(map[string]string{
+			"accountIdentifier":  c.AccountIdentifier,
+			"projectIdentifier":  project,
+			"orgIdentifier":      org,
+			"pipelineIdentifier": is.PipelineIdentifier,
+			"inputSetIdentifier": is.Identifier,
+			"connectorRef":       c.GitDetails.ConnectorRef,
+			"repoName":           c.GitDetails.RepoName,
+			"branch":             c.GitDetails.BranchName,
+			"isNewBranch":        "false",
+			"isHarnessCodeRepo":  "false",
+			"filePath":           c.GitDetails.FilePath,
+			"commitMsg":          c.GitDetails.CommitMessage,
+			"moveConfigType":     "INLINE_TO_REMOTE",
+		}).
+		Post(api.BaseURL + "/gateway/pipeline/api/inputSets/move-config/{identifier}")
 
 	if resp.StatusCode() != 200 {
 		ar := ApiResponse{}

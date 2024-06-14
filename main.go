@@ -35,6 +35,7 @@ func main() {
 	targetProjects := flag.String("target-projects", "", "Provide a list of projects to target.")
 	allFlag := flag.Bool("all", false, "Migrate all entities.")
 	pipelinesFlag := flag.Bool("pipelines", false, "Migrate pipelines.")
+	inputsetsFlag := flag.Bool("inputsets", false, "Migrate inputsets.")
 	templatesFlag := flag.Bool("templates", false, "Migrate templates.")
 	servicesFlag := flag.Bool("services", false, "Migrate services")
 	envFlag := flag.Bool("environments", false, "Migrate environments")
@@ -53,6 +54,7 @@ func main() {
 
 	type MigrationScope struct {
 		Pipelines            bool
+		Inputsets            bool
 		Templates            bool
 		Services             bool
 		Environments         bool
@@ -71,6 +73,7 @@ func main() {
 	if *allFlag {
 		scope = MigrationScope{
 			Pipelines:            true,
+			Inputsets:            true,
 			Templates:            true,
 			Services:             true,
 			Environments:         true,
@@ -87,6 +90,7 @@ func main() {
 	} else {
 		scope = MigrationScope{
 			Pipelines:            *pipelinesFlag,
+			Inputsets:            *inputsetsFlag,
 			Templates:            *templatesFlag,
 			Services:             *servicesFlag,
 			Environments:         *envFlag,
@@ -134,7 +138,7 @@ func main() {
 		APIKey:  accountConfig.ApiKey,
 	}
 
-	if !scope.Pipelines && !scope.Templates && !scope.FileStore && !scope.Overrides && !scope.Services && !scope.Environments && !scope.InfraDef {
+	if !scope.Pipelines && !scope.Templates && !scope.FileStore && !scope.Overrides && !scope.Services && !scope.Environments && !scope.InfraDef && !scope.Inputsets {
 		log.Errorf(color.RedString("You need to specify at least one type of entity to migrate!"))
 		log.Errorf(color.RedString("Please use -pipelines, -templates, -services, -environments, -filestore or -overrides flags"))
 		log.Errorf(color.RedString("If you want to migrate all entities, use -all flag"))
@@ -251,6 +255,39 @@ func main() {
 				pipelineBar.Finish()
 			}
 			pipelines = append(pipelines, projectPipelines.Data.Content...)
+		}
+		if scope.Inputsets {
+			log.Infof("Getting inputsets for project %s", p.Name)
+			projectPipelines, err := api.GetAllPipelines(accountConfig.AccountIdentifier, string(p.OrgIdentifier), p.Identifier)
+			if err != nil {
+				log.Errorf(color.RedString("Unable to get pipelines for inputsets - %s", err))
+				return
+			}
+
+			if len(projectPipelines.Data.Content) > 0 {
+				for _, pipeline := range projectPipelines.Data.Content {
+					if pipeline.StoreType != "REMOTE" {
+						continue
+					}
+
+					inputsets, err := api.GetInputsets(accountConfig.AccountIdentifier, string(p.OrgIdentifier), p.Identifier, pipeline.Identifier)
+					if err != nil {
+						log.Errorf(color.RedString("Unable to list inputsets from pipeline - %s", pipeline.Name))
+						continue
+					}
+
+					for _, is := range inputsets {
+						accountConfig.GitDetails.FilePath = harness.GetInputsetFilePath(scope.GitX, *customGitDetailsFilePath, p, is)
+
+						err := is.MoveInputsetToRemote(&api, accountConfig, p.Identifier, string(p.OrgIdentifier))
+						if err != nil {
+							log.Errorf(color.RedString("Unable to move inputsets [%s] for pipeline - %s", is.Name, pipeline.Name))
+							log.Errorf(color.RedString(err.Error()))
+
+						}
+					}
+				}
+			}
 		}
 
 		if scope.Templates {
