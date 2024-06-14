@@ -35,6 +35,7 @@ func main() {
 	targetProjects := flag.String("target-projects", "", "Provide a list of projects to target.")
 	allFlag := flag.Bool("all", false, "Migrate all entities.")
 	pipelinesFlag := flag.Bool("pipelines", false, "Migrate pipelines.")
+	inputsetsFlag := flag.Bool("inputsets", false, "Migrate inputsets.")
 	templatesFlag := flag.Bool("templates", false, "Migrate templates.")
 	servicesFlag := flag.Bool("services", false, "Migrate services")
 	envFlag := flag.Bool("environments", false, "Migrate environments")
@@ -47,11 +48,13 @@ func main() {
 	cgFolderStructure := flag.Bool("alt-path", false, "CG-like folder structure for Git")
 	prod3 := flag.Bool("prod3", false, "User Prod3 base URL for API calls")
 	customGitDetailsFilePath := flag.String("custom-remote-path", "", "A custom file path where to save remote manifests.")
+	gitX := flag.Bool("gitx", false, "Migrate entity following the Git Experience definitions")
 
 	flag.Parse()
 
 	type MigrationScope struct {
 		Pipelines            bool
+		Inputsets            bool
 		Templates            bool
 		Services             bool
 		Environments         bool
@@ -63,12 +66,14 @@ func main() {
 		UrlEncoding          bool
 		CGFolderStructure    bool
 		Prod3                bool
+		GitX                 bool
 	}
 	scope := MigrationScope{}
 
 	if *allFlag {
 		scope = MigrationScope{
 			Pipelines:            true,
+			Inputsets:            true,
 			Templates:            true,
 			Services:             true,
 			Environments:         true,
@@ -80,10 +85,12 @@ func main() {
 			UrlEncoding:          *urlEncoding,
 			CGFolderStructure:    false,
 			Prod3:                false,
+			GitX:                 *gitX,
 		}
 	} else {
 		scope = MigrationScope{
 			Pipelines:            *pipelinesFlag,
+			Inputsets:            *inputsetsFlag,
 			Templates:            *templatesFlag,
 			Services:             *servicesFlag,
 			Environments:         *envFlag,
@@ -95,6 +102,7 @@ func main() {
 			UrlEncoding:          *urlEncoding,
 			CGFolderStructure:    *cgFolderStructure,
 			Prod3:                *prod3,
+			GitX:                 *gitX,
 		}
 	}
 
@@ -130,7 +138,7 @@ func main() {
 		APIKey:  accountConfig.ApiKey,
 	}
 
-	if !scope.Pipelines && !scope.Templates && !scope.FileStore && !scope.Overrides && !scope.Services && !scope.Environments && !scope.InfraDef {
+	if !scope.Pipelines && !scope.Templates && !scope.FileStore && !scope.Overrides && !scope.Services && !scope.Environments && !scope.InfraDef && !scope.Inputsets {
 		log.Errorf(color.RedString("You need to specify at least one type of entity to migrate!"))
 		log.Errorf(color.RedString("Please use -pipelines, -templates, -services, -environments, -filestore or -overrides flags"))
 		log.Errorf(color.RedString("If you want to migrate all entities, use -all flag"))
@@ -233,7 +241,7 @@ func main() {
 						if scope.CGFolderStructure {
 							accountConfig.GitDetails.FilePath = "account/" + string(p.OrgIdentifier) + "/" + p.Identifier + "/pipelines/" + pipeline.Identifier + ".yaml"
 						} else {
-							accountConfig.GitDetails.FilePath = harness.GetPipelineFilePath(*customGitDetailsFilePath, p, pipeline)
+							accountConfig.GitDetails.FilePath = harness.GetPipelineFilePath(scope.GitX, *customGitDetailsFilePath, p, pipeline)
 						}
 					}
 					_, err := pipeline.MovePipelineToRemote(&api, accountConfig, string(p.OrgIdentifier), p.Identifier)
@@ -247,6 +255,39 @@ func main() {
 				pipelineBar.Finish()
 			}
 			pipelines = append(pipelines, projectPipelines.Data.Content...)
+		}
+		if scope.Inputsets {
+			log.Infof("Getting inputsets for project %s", p.Name)
+			projectPipelines, err := api.GetAllPipelines(accountConfig.AccountIdentifier, string(p.OrgIdentifier), p.Identifier)
+			if err != nil {
+				log.Errorf(color.RedString("Unable to get pipelines for inputsets - %s", err))
+				return
+			}
+
+			if len(projectPipelines.Data.Content) > 0 {
+				for _, pipeline := range projectPipelines.Data.Content {
+					if pipeline.StoreType != "REMOTE" {
+						continue
+					}
+
+					inputsets, err := api.GetInputsets(accountConfig.AccountIdentifier, string(p.OrgIdentifier), p.Identifier, pipeline.Identifier)
+					if err != nil {
+						log.Errorf(color.RedString("Unable to list inputsets from pipeline - %s", pipeline.Name))
+						continue
+					}
+
+					for _, is := range inputsets {
+						accountConfig.GitDetails.FilePath = harness.GetInputsetFilePath(scope.GitX, *customGitDetailsFilePath, p, is)
+
+						err := is.MoveInputsetToRemote(&api, accountConfig, p.Identifier, string(p.OrgIdentifier))
+						if err != nil {
+							log.Errorf(color.RedString("Unable to move inputsets [%s] for pipeline - %s", is.Name, pipeline.Name))
+							log.Errorf(color.RedString(err.Error()))
+
+						}
+					}
+				}
+			}
 		}
 
 		if scope.Templates {
@@ -271,7 +312,7 @@ func main() {
 							accountConfig.GitDetails.FilePath = "account/" + string(p.OrgIdentifier) + "/" + p.Identifier + "/templates/" + template.Identifier + "-" + template.VersionLabel + ".yaml"
 							template.GitDetails = accountConfig.GitDetails
 						} else {
-							accountConfig.GitDetails.FilePath = harness.GetTemplateFilePath(*customGitDetailsFilePath, p, template)
+							accountConfig.GitDetails.FilePath = harness.GetTemplateFilePath(scope.GitX, *customGitDetailsFilePath, p, template)
 							template.GitDetails = accountConfig.GitDetails
 						}
 					}
@@ -307,7 +348,7 @@ func main() {
 				servicesBar := pb.ProgressBarTemplate(servicesTmpl).Start(len(projectServices))
 
 				for _, service := range projectServices {
-					accountConfig.GitDetails.FilePath = harness.GetServiceFilePath(*customGitDetailsFilePath, p, *service)
+					accountConfig.GitDetails.FilePath = harness.GetServiceFilePath(scope.GitX, *customGitDetailsFilePath, p, *service)
 
 					if service.StoreType == "REMOTE" {
 						log.Infof("Service [%s] is already remote", service.Identifier)
@@ -344,7 +385,7 @@ func main() {
 				envBar := pb.ProgressBarTemplate(envTmpl).Start(len(projectEnvironments))
 
 				for _, environment := range projectEnvironments {
-					accountConfig.GitDetails.FilePath = harness.GetEnvironmentFilePath(*customGitDetailsFilePath, p, *environment)
+					accountConfig.GitDetails.FilePath = harness.GetEnvironmentFilePath(scope.GitX, *customGitDetailsFilePath, p, *environment)
 
 					if environment.StoreType == "REMOTE" {
 						log.Infof("Environment [%s] is already remote", environment.Identifier)
@@ -365,7 +406,7 @@ func main() {
 
 		// INFRA-DEF MOVE TO REMOTE
 		if scope.InfraDef {
-			err := processInfraDefScope(log, api, *customGitDetailsFilePath, accountConfig, project, p)
+			err := processInfraDefScope(log, api, *customGitDetailsFilePath, accountConfig, p, scope.GitX)
 			if err != nil {
 				log.Errorf(color.RedString("Unable to inline-to-remote infrastructure - %s", err))
 			}
@@ -879,7 +920,7 @@ func main() {
 	}
 }
 
-func processInfraDefScope(log *logrus.Logger, api harness.APIRequest, customGitDetailsFilePath string, accountConfig harness.Config, project harness.ProjectsContent, p harness.Project) error {
+func processInfraDefScope(log *logrus.Logger, api harness.APIRequest, customGitDetailsFilePath string, accountConfig harness.Config, p harness.Project, gitX bool) error {
 
 	projectEnvironments, err := api.GetEnvironments(accountConfig.AccountIdentifier, string(p.OrgIdentifier), p.Identifier)
 	if err != nil {
@@ -905,7 +946,7 @@ func processInfraDefScope(log *logrus.Logger, api harness.APIRequest, customGitD
 				if len(infras) > 0 {
 					for _, infraDef := range infras {
 						if infraDef.StoreType != "REMOTE" {
-							accountConfig.GitDetails.FilePath = harness.GetInfrastructureFilePath(customGitDetailsFilePath, p, *environment, *infraDef)
+							accountConfig.GitDetails.FilePath = harness.GetInfrastructureFilePath(gitX, customGitDetailsFilePath, p, *environment, *infraDef)
 
 							err = infraDef.MoveInfrastructureToRemote(&api, accountConfig, environment.Identifier)
 							if err != nil {

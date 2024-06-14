@@ -66,6 +66,13 @@ You can run the migration utility using the following commands:
 ```
 ./harness-remote-migrator -config /path/to/config.yaml -pipelines
 ```
+
+**Run ONLY for input sets:**
+
+```sh
+./harness-remote-migrator -config /path/to/config.yaml -inputsets
+```
+
 **Run ONLY for templates:**
 ```
 ./harness-remote-migrator -config /path/to/config.yaml -templates
@@ -110,7 +117,15 @@ You can run the migration utility using the following commands:
 - You can use the flag `custom-remote-path` to point where to save YAMLs inside the remote repository.
 - When using this argument you should avoid running multiple migrations at same time or all the files will be stored at the same path.
 
-### CLI Arguments
+### Git Experience
+
+Use the flag ```-gitx``` to enable support to move entities following the Git Experience folder path convention.
+
+```sh
+./harness-remote-migrator -config /path/to/config.yaml -gitx -environments
+```
+
+## CLI Arguments
 
 ***To be added***
 
@@ -140,6 +155,7 @@ This folder structure will be used to reference the files in your Services/Envir
 ## Supported Entities
 
 1. Pipelines
+1. InputSets
 1. Templates
 1. Services
 1. Environments
