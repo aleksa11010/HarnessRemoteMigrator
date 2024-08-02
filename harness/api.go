@@ -336,6 +336,52 @@ func (i *Infrastructure) MoveInfrastructureToRemote(api *APIRequest, c Config, e
 	return err
 }
 
+func (ov *OverridesV2Content) MoveToRemote(api *APIRequest, c Config) error {
+
+	params := map[string]string{
+		"accountIdentifier":    c.AccountIdentifier,
+		"projectIdentifier":    ov.ProjectIdentifier,
+		"orgIdentifier":        ov.OrgIdentifier,
+		"connectorRef":         c.GitDetails.ConnectorRef,
+		"repoName":             c.GitDetails.RepoName,
+		"branch":               c.GitDetails.BranchName,
+		"isNewBranch":          "false",
+		"isHarnessCodeRepo":    "false",
+		"filePath":             c.GitDetails.FilePath,
+		"commitMsg":            c.GitDetails.CommitMessage,
+		"moveConfigType":       "INLINE_TO_REMOTE",
+		"serviceOverridesType": string(ov.Type),
+		"identifier":           ov.Identifier,
+	}
+
+	if len(ov.EnvironmentRef) != 0 {
+		params["environmentRef"] = ov.EnvironmentRef
+	}
+	if len(ov.ServiceRef) > 0 {
+		params["serviceRef"] = ov.ServiceRef
+	}
+	if len(ov.InfraIdentifier) > 0 {
+		params["infraIdentifier"] = ov.InfraIdentifier
+	}
+
+	resp, err := api.Client.R().
+		SetHeader("x-api-key", api.APIKey).
+		SetQueryParams(params).
+		Post(api.BaseURL + "/gateway/ng/api/serviceOverrides/move-config")
+
+	if resp.StatusCode() != 200 {
+		ar := ApiResponse{}
+		err = json.Unmarshal(resp.Body(), &ar)
+		if err != nil {
+			return err
+		}
+		errMsg := fmt.Sprintf("CorrelationId: %s, ResponseMessages: %+v", ar.CorrelationID, ar.ResponseMessages)
+		return fmt.Errorf(errMsg)
+	}
+
+	return err
+}
+
 func (api *APIRequest) GetAllOrgs(account string) (Organizations, error) {
 	resp, err := api.Client.R().
 		SetHeader("x-api-key", api.APIKey).
@@ -708,4 +754,36 @@ func (api *APIRequest) GetServiceOverrides(environment, account, org, project st
 	}
 
 	return overrideList, nil
+}
+
+func (api *APIRequest) GetOverridesV2(account, org, project string, ovType OverridesV2Type) ([]OverridesV2Content, error) {
+
+	params := map[string]string{
+		"accountIdentifier": account,
+		"orgIdentifier":     org,
+		"projectIdentifier": project,
+		"page":              "0",
+		"size":              "1000",
+		"type":              string(ovType),
+	}
+
+	resp, err := api.Client.R().
+		SetHeader("x-api-key", api.APIKey).
+		SetHeader("Content-Type", "application/json").
+		SetQueryParams(params).
+		Post(api.BaseURL + "/ng/api/serviceOverrides/v2/list")
+	if err != nil {
+		return nil, err
+	}
+
+	result := OverridesV2Response{}
+	err = json.Unmarshal(resp.Body(), &result)
+	if err != nil {
+		return nil, err
+	}
+
+	var list []OverridesV2Content
+	list = append(list, result.Data.Content...)
+
+	return list, nil
 }

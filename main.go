@@ -44,6 +44,7 @@ func main() {
 	serviceManifests := flag.Bool("service", false, "Migrate service manifests.")
 	forceServiceUpdate := flag.Bool("update-service", false, "Force update remote service manifests")
 	overridesFlag := flag.Bool("overrides", false, "Migrate service overrides")
+	overridesV2Flag := flag.Bool("overrides-v2", false, "Migrate service overrides V2")
 	urlEncoding := flag.Bool("url-encode-string", false, "Encode Paths as URL friendly strings")
 	cgFolderStructure := flag.Bool("alt-path", false, "CG-like folder structure for Git")
 	prod3 := flag.Bool("prod3", false, "User Prod3 base URL for API calls")
@@ -63,6 +64,7 @@ func main() {
 		ServiceManifests     bool
 		ForceUpdateManifests bool
 		Overrides            bool
+		OverridesV2          bool
 		UrlEncoding          bool
 		CGFolderStructure    bool
 		Prod3                bool
@@ -82,6 +84,7 @@ func main() {
 			ServiceManifests:     true,
 			ForceUpdateManifests: *forceServiceUpdate,
 			Overrides:            true,
+			OverridesV2:          true,
 			UrlEncoding:          *urlEncoding,
 			CGFolderStructure:    false,
 			Prod3:                false,
@@ -99,6 +102,7 @@ func main() {
 			ServiceManifests:     *serviceManifests,
 			ForceUpdateManifests: *forceServiceUpdate,
 			Overrides:            *overridesFlag,
+			OverridesV2:          *overridesV2Flag,
 			UrlEncoding:          *urlEncoding,
 			CGFolderStructure:    *cgFolderStructure,
 			Prod3:                *prod3,
@@ -138,9 +142,9 @@ func main() {
 		APIKey:  accountConfig.ApiKey,
 	}
 
-	if !scope.Pipelines && !scope.Templates && !scope.FileStore && !scope.Overrides && !scope.Services && !scope.Environments && !scope.InfraDef && !scope.Inputsets {
+	if !scope.Pipelines && !scope.Templates && !scope.FileStore && !scope.Overrides && !scope.Services && !scope.Environments && !scope.InfraDef && !scope.Inputsets && !scope.OverridesV2 {
 		log.Errorf(color.RedString("You need to specify at least one type of entity to migrate!"))
-		log.Errorf(color.RedString("Please use -pipelines, -templates, -services, -environments, -filestore or -overrides flags"))
+		log.Errorf(color.RedString("Please use -pipelines, -templates, -services, -environments, -overrides-v2, -filestore or -overrides flags"))
 		log.Errorf(color.RedString("If you want to migrate all entities, use -all flag"))
 		return
 	}
@@ -409,6 +413,14 @@ func main() {
 			err := processInfraDefScope(log, api, *customGitDetailsFilePath, accountConfig, p, scope.GitX)
 			if err != nil {
 				log.Errorf(color.RedString("Unable to inline-to-remote infrastructure - %s", err))
+			}
+		}
+
+		// OVERRIDES-V2 MOVE TO REMOTE
+		if scope.OverridesV2 {
+			err := processOverridesV2(log, api, *customGitDetailsFilePath, accountConfig, p, scope.GitX)
+			if err != nil {
+				log.Errorf(color.RedString("Unable to inline-to-remote overrides v2 - %s", err))
 			}
 		}
 	}
@@ -954,6 +966,43 @@ func processInfraDefScope(log *logrus.Logger, api harness.APIRequest, customGitD
 							}
 						}
 					}
+				}
+			}
+			pbBar.Increment()
+		}
+		pbBar.Finish()
+	}
+
+	return nil
+}
+
+func processOverridesV2(log *logrus.Logger, api harness.APIRequest, customGitDetailsFilePath string, cfg harness.Config, p harness.Project, gitX bool) error {
+
+	overrideTypes := []harness.OverridesV2Type{harness.OV2_Global, harness.OV2_Service, harness.OV2_Infra, harness.OV2_ServiceInfra}
+	var overrides []harness.OverridesV2Content
+
+	for _, ovType := range overrideTypes {
+		ov, err := api.GetOverridesV2(cfg.AccountIdentifier, string(p.OrgIdentifier), p.Identifier, ovType)
+
+		if err != nil {
+			log.Errorf("Failed to get service overrides V2 type %s - %s", ovType, err)
+		} else {
+			overrides = append(overrides, ov...)
+		}
+	}
+
+	if len(overrides) > 0 {
+		log.Infof("Moving %d service overrides V2 to remote", len(overrides))
+
+		pbTemplate := `{{ blue "Processing: " }} {{ bar . "<" "-" (cycle . "↖" "↗" "↘" "↙" ) "." ">"}} {{percent .}} `
+		pbBar := pb.ProgressBarTemplate(pbTemplate).Start(len(overrides))
+
+		for _, override := range overrides {
+			if override.StoreType != "REMOTE" {
+				cfg.GitDetails.FilePath = harness.GetOverridesV2FilePath(gitX, customGitDetailsFilePath, p, override)
+
+				if err := override.MoveToRemote(&api, cfg); err != nil {
+					log.Errorf(color.RedString("Unable to move overrides V2 [%s] - %s", override, err))
 				}
 			}
 			pbBar.Increment()
