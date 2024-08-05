@@ -59,6 +59,31 @@ func GetInfrastructureFilePath(gitX bool, customGitDetailsFilePath string, p Pro
 	}
 }
 
+func GetOverridesV2FilePath(gitX bool, customGitDetailsFilePath string, p Project, ov OverridesV2Content) string {
+	if len(customGitDetailsFilePath) == 0 {
+		if gitX {
+			switch ov.Type {
+			case OV2_Global:
+				return fmt.Sprintf(".harness/orgs/%s/projects/%s/overrides/%s/overrides.yaml", string(p.OrgIdentifier), p.Identifier, ov.EnvironmentRef)
+			case OV2_Service:
+				return fmt.Sprintf(".harness/orgs/%s/projects/%s/overrides/%s/services/%s/overrides.yaml",
+					string(p.OrgIdentifier), p.Identifier, ov.EnvironmentRef, ov.ServiceRef)
+			case OV2_Infra:
+				return fmt.Sprintf(".harness/orgs/%s/projects/%s/overrides/%s/infras/%s/overrides.yaml",
+					string(p.OrgIdentifier), p.Identifier, ov.EnvironmentRef, ov.InfraIdentifier)
+			case OV2_ServiceInfra:
+				return fmt.Sprintf(".harness/orgs/%s/projects/%s/overrides/%s/services/%s/infras/%s/overrides.yaml",
+					string(p.OrgIdentifier), p.Identifier, ov.EnvironmentRef, ov.ServiceRef, ov.InfraIdentifier)
+			default:
+				panic(fmt.Sprintf("unrecognized overrides V2 type %s", ov.Type))
+			}
+		}
+		return "overrides/" + string(p.OrgIdentifier) + "/" + p.Identifier + "/" + ov.Identifier + ".yaml"
+	} else {
+		return customGitDetailsFilePath + "/" + ov.Identifier + ".yaml"
+	}
+}
+
 func GetInputsetFilePath(gitX bool, customGitDetailsFilePath string, p Project, is *InputsetContent) string {
 	if len(customGitDetailsFilePath) == 0 {
 		if gitX {
