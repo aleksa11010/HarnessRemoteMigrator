@@ -40,7 +40,7 @@ func GetServiceFilePath(gitX bool, customGitDetailsFilePath string, p Project, s
 func GetEnvironmentFilePath(gitX bool, customGitDetailsFilePath string, p Project, env EnvironmentClass) string {
 	if len(customGitDetailsFilePath) == 0 {
 		if gitX {
-			return fmt.Sprintf(".harness/orgs/%s/projects/%s/environments/%s.yaml", string(p.OrgIdentifier), p.Identifier, env.Identifier)
+			return fmt.Sprintf(".harness/orgs/%s/projects/%s/envs/%s/%s.yaml", string(p.OrgIdentifier), p.Identifier, getEnvType(env), env.Identifier)
 		}
 		return "environments/" + string(p.OrgIdentifier) + "/" + p.Identifier + "/" + env.Identifier + ".yaml"
 	} else {
@@ -51,7 +51,7 @@ func GetEnvironmentFilePath(gitX bool, customGitDetailsFilePath string, p Projec
 func GetInfrastructureFilePath(gitX bool, customGitDetailsFilePath string, p Project, env EnvironmentClass, infraDef Infrastructure) string {
 	if len(customGitDetailsFilePath) == 0 {
 		if gitX {
-			return fmt.Sprintf(".harness/orgs/%s/projects/%s/environments/%s/infrastructures/%s.yaml", string(p.OrgIdentifier), p.Identifier, env.Identifier, infraDef.Identifier)
+			return fmt.Sprintf(".harness/orgs/%s/projects/%s/envs/%s/%s/infras/%s.yaml", string(p.OrgIdentifier), p.Identifier, getEnvType(env), env.Identifier, infraDef.Identifier)
 		}
 		return "environments/" + string(p.OrgIdentifier) + "/" + p.Identifier + "/" + env.Identifier + "-" + infraDef.Identifier + ".yaml"
 	} else {
@@ -67,5 +67,16 @@ func GetInputsetFilePath(gitX bool, customGitDetailsFilePath string, p Project, 
 		return "input_sets/" + string(p.OrgIdentifier) + "/" + p.Identifier + "/" + is.PipelineIdentifier + "/" + is.Identifier + ".yaml"
 	} else {
 		return customGitDetailsFilePath + "/" + is.PipelineIdentifier + "/" + is.Identifier + ".yaml"
+	}
+}
+
+func getEnvType(env EnvironmentClass) string {
+	switch env.Type {
+	case "Production":
+		return "production"
+	case "PreProduction":
+		return "pre_production"
+	default:
+		return "unknown"
 	}
 }
