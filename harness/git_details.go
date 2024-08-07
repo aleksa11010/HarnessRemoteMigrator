@@ -80,7 +80,22 @@ func GetOverridesV2FilePath(gitX bool, customGitDetailsFilePath string, p Projec
 		}
 		return "overrides/" + string(p.OrgIdentifier) + "/" + p.Identifier + "/" + ov.Identifier + ".yaml"
 	} else {
-		return customGitDetailsFilePath + "/" + ov.Identifier + ".yaml"
+		return fmt.Sprintf("%s/%s/%s.yaml", customGitDetailsFilePath, GetOverridesLabel(ov), ov.Identifier)
+	}
+}
+
+func GetOverridesLabel(ov OverridesV2Content) string {
+	switch ov.Type {
+	case OV2_Global:
+		return "envs"
+	case OV2_Service:
+		return "services"
+	case OV2_Infra:
+		return "infras"
+	case OV2_ServiceInfra:
+		return "service-infras"
+	default:
+		panic(fmt.Sprintf("unrecognized overrides V2 type %s", ov.Type))
 	}
 }
 
