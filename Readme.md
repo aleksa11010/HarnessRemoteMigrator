@@ -89,6 +89,11 @@ You can run the migration utility using the following commands:
 ```sh
 ./harness-remote-migrator -config /path/to/config.yaml -infraDef
 ```
+#### Run ONLY for Overrides V2
+
+```sh
+./harness-remote-migrator -config /path/to/config.yaml overrides-v2
+```
 
 **Run ONLY for file store:**
 ```
@@ -119,10 +124,16 @@ You can run the migration utility using the following commands:
 
 ### Git Experience
 
-Use the flag ```-gitx``` to enable support to move entities following the Git Experience folder path convention.
+Use the flag ```-gitx``` to enable support to move entities following the Git Experience folder path convention. The examples below demonstrate how to move environments and templates to a remote repository following the Git Experience rules.
 
+Environments
 ```sh
 ./harness-remote-migrator -config /path/to/config.yaml -gitx -environments
+```
+
+Templates
+```sh
+./harness-remote-migrator -config /path/to/config.yaml -gitx -templates
 ```
 
 ## CLI Arguments
