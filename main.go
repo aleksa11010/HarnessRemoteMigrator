@@ -731,13 +731,15 @@ func main() {
 							files = append(files, fmt.Sprintf("filestore/%s/%s%s", service.Org, service.Project, file))
 						}
 						var valueFiles []string
-						if len(m.Manifest.Spec.Store.ValuesPaths) > 0 {
-							for _, v := range m.Manifest.Spec.Store.ValuesPaths {
+						if len(m.Manifest.Spec.ValuesPaths) > 0 {
+							log.Infof("Setting values file paths")
+							for _, v := range m.Manifest.Spec.ValuesPaths {
 								valueFiles = append(valueFiles, fmt.Sprintf("filestore/%s/%s%s", service.Org, service.Project, v))
 							}
+							log.Infof("Setting following value file paths : %+v", valueFiles)
 						}
 						log.Infof("Setting following file paths : %+v", files)
-						if m.Manifest.Spec.Store.Type == "GitLab" {
+						if m.Manifest.Spec.Store.Type == "GitLab" || m.Manifest.Spec.Store.Type == "Github" {
 							m.Manifest.Spec.Store.Spec.Paths = files
 						} else {
 							m.Manifest.Spec.Store.Spec.Files = files
@@ -745,7 +747,7 @@ func main() {
 						m.Manifest.Spec.Store.Spec.Branch = accountConfig.GitDetails.BranchName
 						m.Manifest.Spec.Store.Spec.ConnectorRef = accountConfig.GitDetails.ConnectorRef
 						m.Manifest.Spec.Store.Spec.GitFetchType = "Branch"
-						m.Manifest.Spec.Store.ValuesPaths = valueFiles
+						m.Manifest.Spec.ValuesPaths = valueFiles
 
 						update = true
 					} else if scope.ForceUpdateManifests {
@@ -765,7 +767,7 @@ func main() {
 						m.Manifest.Spec.Store.Spec.Branch = accountConfig.GitDetails.BranchName
 						m.Manifest.Spec.Store.Spec.ConnectorRef = accountConfig.GitDetails.ConnectorRef
 						m.Manifest.Spec.Store.Spec.GitFetchType = "Branch"
-						m.Manifest.Spec.Store.ValuesPaths = valueFiles
+						m.Manifest.Spec.ValuesPaths = valueFiles
 
 						update = true
 					} else {

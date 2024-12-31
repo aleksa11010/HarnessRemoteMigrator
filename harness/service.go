@@ -78,10 +78,11 @@ type ServiceYaml struct {
 								} `yaml:"spec"`
 								ValuesPaths []string `yaml:"valuesPaths"`
 							} `yaml:"store"`
-							ChartName              string `yaml:"chartName"`
-							ChartVersion           string `yaml:"chartVersion"`
-							HelmVersion            string `yaml:"helmVersion"`
-							SkipResourceVersioning bool   `yaml:"skipResourceVersioning"`
+							ValuesPaths            []string `yaml:"valuesPaths"`
+							ChartName              string   `yaml:"chartName"`
+							ChartVersion           string   `yaml:"chartVersion"`
+							HelmVersion            string   `yaml:"helmVersion"`
+							SkipResourceVersioning bool     `yaml:"skipResourceVersioning"`
 						} `yaml:"spec"`
 					} `yaml:"manifest"`
 				} `yaml:"manifests"`
