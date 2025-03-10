@@ -812,6 +812,94 @@ func main() {
 				log.Errorf("Unable to get Connector info - %s", err)
 				return
 			}
+			for _, project := range projectList {
+				p := project.Project
+				overrideTypes := []harness.OverridesV2Type{harness.OV2_Global, harness.OV2_Service, harness.OV2_Infra, harness.OV2_ServiceInfra}
+				var overrides []harness.OverridesV2Content
+				log.Infof(boldCyan.Sprintf("---Fetching Overrides V2 ---"))
+				for _, ovType := range overrideTypes {
+					ov, err := api.GetOverridesV2(accountConfig.AccountIdentifier, string(p.OrgIdentifier), p.Identifier, ovType)
+
+					if err != nil {
+						log.Errorf("Failed to get service overrides V2 type %s - %s", ovType, err)
+					} else {
+						overrides = append(overrides, ov...)
+					}
+				}
+
+				if len(overrides) > 0 {
+					log.Infof("Updating %d service overrides V2 from FileStore to Git", len(overrides))
+
+					pbTemplate := `{{ blue "Processing: " }} {{ bar . "<" "-" (cycle . "↖" "↗" "↘" "↙" ) "." ">"}} {{percent .}} `
+					pbBar := pb.ProgressBarTemplate(pbTemplate).Start(len(overrides))
+
+					for _, override := range overrides {
+						update := false
+						for i := range override.Spec.Manifests {
+							m := &override.Spec.Manifests[i]
+							if m.Manifest.Spec.Store.Type == "Harness" {
+
+								m.Manifest.Spec.Store.Type = conn.Type
+								var files []string
+								for _, file := range m.Manifest.Spec.Store.Spec.Files {
+									files = append(files, fmt.Sprintf("filestore/%s/%s%s", override.OrgIdentifier, override.ProjectIdentifier, file))
+								}
+								var valueFiles []string
+								if len(m.Manifest.Spec.ValuesPaths) > 0 {
+									for _, v := range m.Manifest.Spec.ValuesPaths {
+										valueFiles = append(valueFiles, fmt.Sprintf("filestore/%s/%s%s", override.OrgIdentifier, override.ProjectIdentifier, v))
+									}
+								}
+								log.Infof("Setting following file paths : %+v", files)
+								m.Manifest.Spec.Store.Spec.Paths = files
+								m.Manifest.Spec.Store.Spec.Branch = accountConfig.GitDetails.BranchName
+								m.Manifest.Spec.Store.Spec.ConnectorRef = accountConfig.GitDetails.ConnectorRef
+								m.Manifest.Spec.Store.Spec.GitFetchType = "Branch"
+								m.Manifest.Spec.ValuesPaths = valueFiles
+
+								update = true
+							} else if scope.ForceUpdateManifests {
+								m.Manifest.Spec.Store.Type = conn.Type
+								var files []string
+								for _, file := range m.Manifest.Spec.Store.Spec.Files {
+									files = append(files, fmt.Sprintf("filestore/%s/%s%s", override.OrgIdentifier, override.ProjectIdentifier, file))
+								}
+								var valueFiles []string
+								if len(m.Manifest.Spec.ValuesPaths) > 0 {
+									for _, v := range m.Manifest.Spec.ValuesPaths {
+										valueFiles = append(valueFiles, fmt.Sprintf("filestore/%s/%s%s", override.OrgIdentifier, override.ProjectIdentifier, v))
+									}
+								}
+								log.Infof("Setting following file paths : %+v", files)
+								m.Manifest.Spec.Store.Spec.Paths = files
+								m.Manifest.Spec.Store.Spec.Branch = accountConfig.GitDetails.BranchName
+								m.Manifest.Spec.Store.Spec.ConnectorRef = accountConfig.GitDetails.ConnectorRef
+								m.Manifest.Spec.Store.Spec.GitFetchType = "Branch"
+								m.Manifest.Spec.ValuesPaths = valueFiles
+
+								update = true
+							} else {
+								log.Infof("Override Manifest [%s] for Environment [%s] is already remote!", m.Manifest.Identifier, override.EnvironmentRef)
+							}
+							if update {
+								// Marshal the modified ServiceYaml back to a YAML string
+								log.Infof("Updating Override [%s]", override.Identifier)
+								override.YAML = ""
+								err := override.UpdateOverrideV2(&api, accountConfig.AccountIdentifier)
+
+								if err != nil {
+									log.Errorf(color.RedString("Unable to move service override manifests for environment [%s]", override.EnvironmentRef))
+									failedServices = append(failedServices, override.EnvironmentRef)
+								}
+							}
+						}
+						pbBar.Increment()
+					}
+					pbBar.Finish()
+				}
+
+			}
+
 			var environmentList []*harness.EnvironmentClass
 
 			log.Info("Getting environments for Account level")

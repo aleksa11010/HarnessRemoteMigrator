@@ -787,3 +787,30 @@ func (api *APIRequest) GetOverridesV2(account, org, project string, ovType Overr
 
 	return list, nil
 }
+
+func (override *OverridesV2Content) UpdateOverrideV2(api *APIRequest, account string) error {
+	params := map[string]string{
+		"accountIdentifier": account,
+	}
+	resp, err := api.Client.R().
+		SetHeader("x-api-key", api.APIKey).
+		SetHeader("Content-Type", "application/json").
+		SetQueryParams(params).
+		EnableTrace().
+		SetBody(override).
+		Put(api.BaseURL + "/ng/api/serviceOverrides")
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode() != 200 {
+		ar := ApiResponse{}
+		err = json.Unmarshal(resp.Body(), &ar)
+		if err != nil {
+			return err
+		}
+		errMsg := fmt.Sprintf("CorrelationId: %s, ResponseMessages: %+v", ar.CorrelationID, ar.ResponseMessages)
+		return fmt.Errorf(errMsg)
+	}
+
+	return nil
+}

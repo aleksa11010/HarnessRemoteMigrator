@@ -27,6 +27,62 @@ type OverridesV2Content struct {
 	InfraIdentifier   string          `json:"infraIdentifier,omitempty"`
 	Type              OverridesV2Type `json:"type"`
 	StoreType         string          `json:"storeType,omitempty"`
+	YAML              string          `json:"yaml"`
+	Spec              OverrideSpec    `json:"spec,omitempty"`
+}
+
+type OverrideSpec struct {
+	Variables []struct {
+		Name     string `json:"name"`
+		Type     string `json:"type"`
+		Value    string `json:"value"`
+		Required bool   `json:"required"`
+	} `json:"variables"`
+	CliEnvironmentVariables []struct {
+		Name  string `json:"name"`
+		Type  string `json:"type"`
+		Value string `json:"value"`
+	} `json:"cliEnvironmentVariables"`
+	Manifests []struct {
+		Manifest struct {
+			Identifier string `json:"identifier"`
+			Type       string `json:"type"`
+			Spec       struct {
+				Store struct {
+					Type string `json:"type"`
+					Spec struct {
+						ConnectorRef              string   `json:"connectorRef"`
+						GitFetchType              string   `json:"gitFetchType"`
+						Paths                     []string `json:"paths"`
+						Branch                    string   `json:"branch"`
+						Files                     []string `json:"files"`
+						SkipResourceVersioning    bool     `json:"skipResourceVersioning"`
+						EnableDeclarativeRollback bool     `json:"enableDeclarativeRollback"`
+					} `json:"spec"`
+				} `json:"store"`
+				ValuesPaths []string `json:"valuesPaths"`
+			} `json:"spec"`
+		} `json:"manifest"`
+	} `json:"manifests"`
+	ConfigFiles []struct {
+		ConfigFile struct {
+			Identifier string `json:"identifier"`
+			Type       string `json:"type"`
+			Spec       struct {
+				Store struct {
+					Type string `json:"type"`
+					Spec struct {
+						ConnectorRef string   `json:"connectorRef"`
+						GitFetchType string   `json:"gitFetchType"`
+						Paths        []string `json:"paths"`
+						Branch       string   `json:"branch"`
+						Files        []string `json:"files"`
+						SecretFiles  []string `json:"SecretFiles"`
+					} `json:"spec"`
+				} `json:"store"`
+			} `json:"spec"`
+		} `json:"configFile"`
+	} `json:"configFiles"`
 }
 
 type OverridesV2Type string
